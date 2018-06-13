@@ -61,6 +61,8 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 		pool := handlers.NewWorkerPool(
 			poolAddr,
 			f.Handler.Command,
+			cfg.VcapApplication.ApplicationID,
+			cfg.CFInstanceIndex,
 			time.Second,
 			capiClient,
 			log,

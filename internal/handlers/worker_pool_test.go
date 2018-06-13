@@ -42,7 +42,7 @@ func TestWorkerPool(t *testing.T) {
 			u:              u,
 			spyTaskCreator: spyTaskCreator,
 			recorder:       httptest.NewRecorder(),
-			p:              handlers.NewWorkerPool("http://some.url", "some-command", time.Millisecond, spyTaskCreator, log.New(ioutil.Discard, "", 0)),
+			p:              handlers.NewWorkerPool("http://some.url", "some-command", "app-guid", 99, time.Millisecond, spyTaskCreator, log.New(ioutil.Discard, "", 0)),
 		}
 	})
 
@@ -71,7 +71,8 @@ func TestWorkerPool(t *testing.T) {
 		Expect(t, t.spyTaskCreator.Command).To(ViaPolling(Not(HaveLen(0))))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`while true`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`done`))
-		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s http://some.url | jq -r .href)`))
+		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export X_CF_APP_INSTANCE="app-guid:99"`))
+		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s http://some.url -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`if [ -z "$CF_FAAS_RELAY_ADDR" ]; then`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring("some-command"))
 	})

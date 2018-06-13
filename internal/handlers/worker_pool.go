@@ -12,12 +12,14 @@ import (
 )
 
 type WorkerPool struct {
-	c       TaskCreator
-	q       chan *url.URL
-	log     *log.Logger
-	addIn   time.Duration
-	addr    string
-	command string
+	c             TaskCreator
+	q             chan *url.URL
+	log           *log.Logger
+	addIn         time.Duration
+	addr          string
+	command       string
+	appGuid       string
+	instanceIndex int
 
 	mu        sync.Mutex
 	taskCount int
@@ -30,6 +32,8 @@ type TaskCreator interface {
 func NewWorkerPool(
 	addr string,
 	command string,
+	appGuid string,
+	instanceIndex int,
 	addTaskThreshold time.Duration,
 	c TaskCreator,
 	log *log.Logger,
@@ -39,9 +43,11 @@ func NewWorkerPool(
 		c:   c,
 		q:   make(chan *url.URL),
 
-		addIn:   addTaskThreshold,
-		addr:    addr,
-		command: command,
+		addIn:         addTaskThreshold,
+		addr:          addr,
+		command:       command,
+		appGuid:       appGuid,
+		instanceIndex: instanceIndex,
 	}
 
 	go p.taskThreshold()
@@ -113,7 +119,9 @@ while true
 do
 set -e
 
-export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s %s | jq -r .href)
+export X_CF_APP_INSTANCE="%s:%d"
+
+export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s %s -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)
 if [ -z "$CF_FAAS_RELAY_ADDR" ]; then
 	echo "failed to fetch work... exiting"
 	exit 0
@@ -123,5 +131,5 @@ set +e
 
 %s
 done
-`, p.addr, p.command)
+`, p.appGuid, p.instanceIndex, p.addr, p.command)
 }

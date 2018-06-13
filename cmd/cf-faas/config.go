@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	Port       int    `env:"PORT, required, report"`
-	HealthPort int    `env:"PROXY_HEALTH_PORT, report"`
-	Manifest   string `env:"MANIFEST_PATH, required, report"`
+	Port            int    `env:"PORT, required, report"`
+	HealthPort      int    `env:"PROXY_HEALTH_PORT, report"`
+	Manifest        string `env:"MANIFEST_PATH, required, report"`
+	CFInstanceIndex int    `env:"CF_INSTANCE_INDEX, required, report"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
 

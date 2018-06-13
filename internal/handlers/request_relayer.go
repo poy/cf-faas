@@ -16,8 +16,9 @@ import (
 )
 
 type RequestRelayer struct {
-	log  *log.Logger
-	addr string
+	log        *log.Logger
+	addr       string
+	pathPrefix string
 
 	mu sync.Mutex
 	m  map[string]struct {
@@ -27,10 +28,11 @@ type RequestRelayer struct {
 	}
 }
 
-func NewRequestRelayer(addr string, log *log.Logger) *RequestRelayer {
+func NewRequestRelayer(addr, pathPrefix string, log *log.Logger) *RequestRelayer {
 	return &RequestRelayer{
-		log:  log,
-		addr: addr,
+		log:        log,
+		addr:       addr,
+		pathPrefix: pathPrefix,
 		m: make(map[string]struct {
 			writer chan<- api.Response
 			errs   chan<- error
@@ -42,7 +44,7 @@ func NewRequestRelayer(addr string, log *log.Logger) *RequestRelayer {
 func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (api.Response, error), error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	path := fmt.Sprintf("/%d%d", rand.Int63(), time.Now().UnixNano())
+	path := fmt.Sprintf("/%s/%d%d", r.pathPrefix, rand.Int63(), time.Now().UnixNano())
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {

@@ -23,8 +23,8 @@ type TE struct {
 	h        http.Handler
 	recorder *httptest.ResponseRecorder
 
-	spyTaskCreator *spyTaskCreator
-	spyRelayer     *spyRelayer
+	spyWorkSubmitter *spyWorkSubmitter
+	spyRelayer       *spyRelayer
 }
 
 func TestHTTPEvent(t *testing.T) {
@@ -34,43 +34,31 @@ func TestHTTPEvent(t *testing.T) {
 
 	o.BeforeEach(func(t *testing.T) TE {
 		spyRelayer := newSpyRelayer()
-		spyTaskCreator := newSpyTaskCreator()
+		spyWorkSubmitter := newSpyWorkSubmitter()
 		return TE{
-			T:              t,
-			recorder:       httptest.NewRecorder(),
-			spyRelayer:     spyRelayer,
-			spyTaskCreator: spyTaskCreator,
+			T:                t,
+			recorder:         httptest.NewRecorder(),
+			spyRelayer:       spyRelayer,
+			spyWorkSubmitter: spyWorkSubmitter,
 			h: handlers.NewHTTPEvent(
 				"some-command",
 				spyRelayer,
-				spyTaskCreator,
+				spyWorkSubmitter,
 				log.New(ioutil.Discard, "", 0),
 			),
 		}
 	})
 
-	o.Spec("creates a task that sets the relay addr as an env variable", func(t TE) {
+	o.Spec("submits the relayer's addr for work", func(t TE) {
+		u, err := url.Parse("http://some.addr")
+		Expect(t, err).To(BeNil())
+
+		t.spyRelayer.u = u
 		req, err := http.NewRequest("GET", "http://some.url", nil)
 		Expect(t, err).To(BeNil())
 
 		t.h.ServeHTTP(t.recorder, req)
-		Expect(t, t.spyTaskCreator.Command).To(
-			ViaPolling(
-				ContainSubstring(`export CF_FAAS_RELAY_ADDR="http://some.url/some-id"`),
-			),
-		)
-	})
-
-	o.Spec("creates a task that invokes the command", func(t TE) {
-		req, err := http.NewRequest("GET", "http://some.url", nil)
-		Expect(t, err).To(BeNil())
-
-		t.h.ServeHTTP(t.recorder, req)
-		Expect(t, t.spyTaskCreator.Command).To(
-			ViaPolling(
-				ContainSubstring(`some-command`),
-			),
-		)
+		Expect(t, t.spyWorkSubmitter.u).To(Equal(u))
 	})
 
 	o.Spec("relayer should be given the request", func(t TE) {
@@ -116,18 +104,7 @@ func TestHTTPEvent(t *testing.T) {
 		Expect(t, t.recorder.Code).To(Equal(http.StatusInternalServerError))
 	})
 
-	o.Spec("it should return a 500 if creating a task fails", func(t TE) {
-		t.spyRelayer.block = true
-		t.spyTaskCreator.err = errors.New("some-error")
-
-		req, err := http.NewRequest("GET", "http://some.url", nil)
-		Expect(t, err).To(BeNil())
-
-		t.h.ServeHTTP(t.recorder, req)
-		Expect(t, t.recorder.Code).To(Equal(http.StatusInternalServerError))
-	})
-
-	o.Spec("it should use context from request for creating task", func(t TE) {
+	o.Spec("it should use context from request for submitting work", func(t TE) {
 		ctx, cancel := context.WithCancel(context.Background())
 		req, err := http.NewRequest("GET", "http://some.url", nil)
 		Expect(t, err).To(BeNil())
@@ -136,8 +113,8 @@ func TestHTTPEvent(t *testing.T) {
 		t.h.ServeHTTP(t.recorder, req)
 		cancel()
 
-		Expect(t, t.spyTaskCreator.Command).To(ViaPolling(Not(HaveLen(0))))
-		Expect(t, t.spyTaskCreator.ctx.Err()).To(Not(BeNil()))
+		Expect(t, t.spyWorkSubmitter.ctx).To(Not(BeNil()))
+		Expect(t, t.spyWorkSubmitter.ctx.Err()).To(Not(BeNil()))
 	})
 
 	o.Spec("it should use context from request for the relayer", func(t TE) {
@@ -206,27 +183,16 @@ func (s *spyRelayer) Relay(r *http.Request) (*url.URL, func() (api.Response, err
 	}, s.err
 }
 
-type spyTaskCreator struct {
-	mu      sync.Mutex
-	ctx     context.Context
-	command string
-	err     error
+type spyWorkSubmitter struct {
+	ctx context.Context
+	u   *url.URL
 }
 
-func newSpyTaskCreator() *spyTaskCreator {
-	return &spyTaskCreator{}
+func newSpyWorkSubmitter() *spyWorkSubmitter {
+	return &spyWorkSubmitter{}
 }
 
-func (s *spyTaskCreator) CreateTask(ctx context.Context, command string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *spyWorkSubmitter) SubmitWork(ctx context.Context, u *url.URL) {
 	s.ctx = ctx
-	s.command = command
-	return s.err
-}
-
-func (s *spyTaskCreator) Command() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.command
+	s.u = u
 }

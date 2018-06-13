@@ -35,7 +35,7 @@ func TestRequestRelayer(t *testing.T) {
 		return TR{
 			T:        t,
 			recorder: httptest.NewRecorder(),
-			r:        handlers.NewRequestRelayer("http://some.url", log.New(ioutil.Discard, "", 0)),
+			r:        handlers.NewRequestRelayer("http://some.url", "some-prefix", log.New(ioutil.Discard, "", 0)),
 		}
 	})
 
@@ -51,6 +51,7 @@ func TestRequestRelayer(t *testing.T) {
 
 		addr, _, err := t.r.Relay(req)
 		Expect(t, err).To(BeNil())
+		Expect(t, strings.HasPrefix(addr.Path, "/some-prefix")).To(BeTrue())
 
 		req, err = http.NewRequest("GET", addr.String(), bytes.NewReader(nil))
 		Expect(t, err).To(BeNil())

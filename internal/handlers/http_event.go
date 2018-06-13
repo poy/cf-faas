@@ -16,7 +16,7 @@ import (
 type HTTPEvent struct {
 	log *log.Logger
 	r   Relayer
-	c   TaskCreator
+	s   WorkSubmitter
 
 	command string
 }
@@ -25,20 +25,20 @@ type Relayer interface {
 	Relay(r *http.Request) (*url.URL, func() (api.Response, error), error)
 }
 
-type TaskCreator interface {
-	CreateTask(ctx context.Context, command string) error
+type WorkSubmitter interface {
+	SubmitWork(ctx context.Context, u *url.URL)
 }
 
 func NewHTTPEvent(
 	command string,
 	r Relayer,
-	c TaskCreator,
+	s WorkSubmitter,
 	log *log.Logger,
 ) *HTTPEvent {
 	return &HTTPEvent{
 		log:     log,
 		r:       r,
-		c:       c,
+		s:       s,
 		command: command,
 	}
 }
@@ -55,35 +55,18 @@ func (e HTTPEvent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errs := make(chan error, 2)
-	resps := make(chan api.Response)
+	e.s.SubmitWork(ctx, u)
 
-	go func() {
-		if err := e.c.CreateTask(r.Context(), e.buildCommand(u)); err != nil {
-			println("ASDF")
-			e.log.Printf("creating a task failed: %s", err)
-			errs <- err
-			return
-		}
-	}()
-
-	go func() {
-		resp, err := f()
-		if err != nil {
-			e.log.Printf("running task failed: %s", err)
-			errs <- err
-			return
-		}
-		resps <- resp
-	}()
-
-	select {
-	case <-errs:
+	// blocks until the request has been fulfilled.
+	resp, err := f()
+	if err != nil {
+		e.log.Printf("running task failed: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
-	case resp := <-resps:
-		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, bytes.NewReader(resp.Body))
+		return
 	}
+
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, bytes.NewReader(resp.Body))
 }
 
 func (e HTTPEvent) buildCommand(relayURL *url.URL) string {

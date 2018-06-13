@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -40,10 +41,12 @@ func main() {
 }
 
 func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
+	internalID := fmt.Sprintf("%d%d", rand.Int63(), time.Now().UnixNano())
+
 	r := mux.NewRouter()
 
-	relayer := handlers.NewRequestRelayer(cfg.VcapApplication.ApplicationURIs[0], log)
-	r.Handle("/{id}", relayer).Methods(http.MethodGet, http.MethodPost)
+	relayer := handlers.NewRequestRelayer(cfg.VcapApplication.ApplicationURIs[0], fmt.Sprintf("%s/relayer", internalID), log)
+	r.Handle(fmt.Sprintf("/%s/relayer/{id}", internalID), relayer).Methods(http.MethodGet, http.MethodPost)
 
 	capiClient := capi.NewClient(
 		cfg.VcapApplication.CAPIAddr,
@@ -53,7 +56,18 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 	)
 
 	for _, f := range manifest.Functions {
-		eh := handlers.NewHTTPEvent(f.Handler.Command, relayer, capiClient, log)
+		poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
+		poolAddr := fmt.Sprintf("http://%s%s", cfg.VcapApplication.ApplicationURIs[0], poolPath)
+		pool := handlers.NewWorkerPool(
+			poolAddr,
+			f.Handler.Command,
+			time.Second,
+			capiClient,
+			log,
+		)
+		r.Handle(poolPath, pool).Methods(http.MethodGet)
+
+		eh := handlers.NewHTTPEvent(f.Handler.Command, relayer, pool, log)
 		for _, e := range f.HTTPEvents {
 			r.Handle(e.Path, eh).Methods(e.Method)
 		}

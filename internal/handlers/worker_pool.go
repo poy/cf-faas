@@ -13,6 +13,7 @@ import (
 
 type WorkerPool struct {
 	c                 TaskCreator
+	f                 TokenFetcher
 	q                 chan *url.URL
 	log               *log.Logger
 	addIn             time.Duration
@@ -30,6 +31,10 @@ type TaskCreator interface {
 	CreateTask(ctx context.Context, command string) error
 }
 
+type TokenFetcher interface {
+	Token() (string, error)
+}
+
 func NewWorkerPool(
 	addr string,
 	command string,
@@ -38,11 +43,13 @@ func NewWorkerPool(
 	skipSSLValidation bool,
 	addTaskThreshold time.Duration,
 	c TaskCreator,
+	f TokenFetcher,
 	log *log.Logger,
 ) *WorkerPool {
 	p := &WorkerPool{
 		log: log,
 		c:   c,
+		f:   f,
 		q:   make(chan *url.URL),
 
 		addIn:             addTaskThreshold,
@@ -90,7 +97,13 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
 			return
 		case <-timer.C:
 			if p.tryAddToThreshold() {
-				go p.c.CreateTask(context.Background(), p.buildCommand())
+				token, err := p.f.Token()
+				if err != nil {
+					log.Printf("failed to fetch token: %s", err)
+					continue
+				}
+
+				go p.c.CreateTask(context.Background(), p.buildCommand(token))
 			}
 		}
 	}
@@ -115,7 +128,7 @@ func (p *WorkerPool) taskThreshold() {
 	}
 }
 
-func (p *WorkerPool) buildCommand() string {
+func (p *WorkerPool) buildCommand(token string) string {
 	var skipSSLFlag string
 	if p.skipSSLValidation {
 		skipSSLFlag = " -k"
@@ -127,10 +140,11 @@ while true
 do
 set -e
 
+export CF_AUTH_TOKEN="%s"
 export SKIP_SSL_VALIDATION="%v"
 export X_CF_APP_INSTANCE="%s:%d"
 
-export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s%s %s -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)
+export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s%s %s -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" -H "Authorization: $CF_AUTH_TOKEN" | jq -r .href)
 if [ -z "$CF_FAAS_RELAY_ADDR" ]; then
 	echo "failed to fetch work... exiting"
 	exit 0
@@ -140,5 +154,5 @@ set +e
 
 %s
 done
-`, p.skipSSLValidation, p.appGuid, p.instanceIndex, skipSSLFlag, p.addr, p.command)
+`, token, p.skipSSLValidation, p.appGuid, p.instanceIndex, skipSSLFlag, p.addr, p.command)
 }

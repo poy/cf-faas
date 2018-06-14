@@ -62,6 +62,8 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 		http.DefaultClient,
 	)
 
+	tokenFetcher := capi.NewTokenFetcher(fmt.Sprintf("http://localhost:%d", cfg.TokenPort), http.DefaultClient)
+
 	for _, f := range manifest.Functions {
 		poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
 		poolAddr := fmt.Sprintf("https://%s%s", cfg.VcapApplication.ApplicationURIs[0], poolPath)
@@ -73,6 +75,7 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 			cfg.SkipSSLValidation,
 			time.Second,
 			capiClient,
+			tokenFetcher,
 			log,
 		)
 		r.Handle(poolPath, pool).Methods(http.MethodGet)

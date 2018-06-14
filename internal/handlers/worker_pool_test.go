@@ -19,10 +19,11 @@ import (
 
 type TP struct {
 	*testing.T
-	spyTaskCreator *spyTaskCreator
-	p              *handlers.WorkerPool
-	recorder       *httptest.ResponseRecorder
-	u              *url.URL
+	spyTaskCreator  *spyTaskCreator
+	spyTokenFetcher *spyTokenFetcher
+	p               *handlers.WorkerPool
+	recorder        *httptest.ResponseRecorder
+	u               *url.URL
 }
 
 func TestWorkerPool(t *testing.T) {
@@ -32,17 +33,19 @@ func TestWorkerPool(t *testing.T) {
 
 	o.BeforeEach(func(t *testing.T) TP {
 		spyTaskCreator := newSpyTaskCreator()
+		spyTokenFetcher := newSpyTokenFetcher()
 		u, err := url.Parse("http://some-addr.url")
 		if err != nil {
 			panic(err)
 		}
 
 		return TP{
-			T:              t,
-			u:              u,
-			spyTaskCreator: spyTaskCreator,
-			recorder:       httptest.NewRecorder(),
-			p:              handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", 99, true, time.Millisecond, spyTaskCreator, log.New(ioutil.Discard, "", 0)),
+			T:               t,
+			u:               u,
+			spyTokenFetcher: spyTokenFetcher,
+			spyTaskCreator:  spyTaskCreator,
+			recorder:        httptest.NewRecorder(),
+			p:               handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", 99, true, time.Millisecond, spyTaskCreator, spyTokenFetcher, log.New(ioutil.Discard, "", 0)),
 		}
 	})
 
@@ -66,25 +69,27 @@ func TestWorkerPool(t *testing.T) {
 	})
 
 	o.Spec("schedules a new task if the work just sits", func(t TP) {
+		t.spyTokenFetcher.token = "some-token"
 		go t.p.SubmitWork(context.Background(), t.u)
 
 		Expect(t, t.spyTaskCreator.Command).To(ViaPolling(Not(HaveLen(0))))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`while true`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`done`))
+		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_AUTH_TOKEN="some-token"`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export SKIP_SSL_VALIDATION="true"`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export X_CF_APP_INSTANCE="app-guid:99"`))
-		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s -k https://some.url -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)`))
+		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s -k https://some.url -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" -H "Authorization: $CF_AUTH_TOKEN" | jq -r .href)`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`if [ -z "$CF_FAAS_RELAY_ADDR" ]; then`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring("some-command"))
 	})
 
 	o.Spec("does not skip SSL validation unless SKIP_SSL_VALIDATION is true", func(t TP) {
-		t.p = handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", 99, false, time.Millisecond, t.spyTaskCreator, log.New(ioutil.Discard, "", 0))
+		t.p = handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", 99, false, time.Millisecond, t.spyTaskCreator, t.spyTokenFetcher, log.New(ioutil.Discard, "", 0))
 		go t.p.SubmitWork(context.Background(), t.u)
 
 		Expect(t, t.spyTaskCreator.Command).To(ViaPolling(Not(HaveLen(0))))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export SKIP_SSL_VALIDATION="false"`))
-		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s https://some.url -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)`))
+		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s https://some.url -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" -H "Authorization: $CF_AUTH_TOKEN" | jq -r .href)`))
 	})
 
 	o.Spec("returns a 405 for anything other than a GET", func(t TP) {
@@ -127,4 +132,17 @@ func (s *spyTaskCreator) Called() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.called
+}
+
+type spyTokenFetcher struct {
+	token string
+	err   error
+}
+
+func newSpyTokenFetcher() *spyTokenFetcher {
+	return &spyTokenFetcher{}
+}
+
+func (s *spyTokenFetcher) Token() (string, error) {
+	return s.token, s.err
 }

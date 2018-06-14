@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -45,7 +46,13 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 
 	r := mux.NewRouter()
 
-	relayer := handlers.NewRequestRelayer(cfg.VcapApplication.ApplicationURIs[0], fmt.Sprintf("%s/relayer", internalID), log)
+	u, err := url.Parse(cfg.VcapApplication.ApplicationURIs[0])
+	if err != nil {
+		log.Fatalf("failed to parse application URI: %s", err)
+	}
+	u.Scheme = "https"
+
+	relayer := handlers.NewRequestRelayer(u.String(), fmt.Sprintf("%s/relayer", internalID), log)
 	r.Handle(fmt.Sprintf("/%s/relayer/{id}", internalID), relayer).Methods(http.MethodGet, http.MethodPost)
 
 	capiClient := capi.NewClient(
@@ -57,12 +64,13 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 
 	for _, f := range manifest.Functions {
 		poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
-		poolAddr := fmt.Sprintf("http://%s%s", cfg.VcapApplication.ApplicationURIs[0], poolPath)
+		poolAddr := fmt.Sprintf("https://%s%s", cfg.VcapApplication.ApplicationURIs[0], poolPath)
 		pool := handlers.NewWorkerPool(
 			poolAddr,
 			f.Handler.Command,
 			cfg.VcapApplication.ApplicationID,
 			cfg.CFInstanceIndex,
+			cfg.SkipSSLValidation,
 			time.Second,
 			capiClient,
 			log,

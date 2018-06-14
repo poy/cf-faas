@@ -97,6 +97,12 @@ func (r *RequestRelayer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		io.Copy(ioutil.Discard, req.Body)
 	}()
 
+	if req.Header.Get("X-Forwarded-Proto") != "https" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"rejecting non-https requests"}`))
+		return
+	}
+
 	switch req.Method {
 	case http.MethodGet:
 		r.mu.Lock()

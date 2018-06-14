@@ -12,14 +12,15 @@ import (
 )
 
 type WorkerPool struct {
-	c             TaskCreator
-	q             chan *url.URL
-	log           *log.Logger
-	addIn         time.Duration
-	addr          string
-	command       string
-	appGuid       string
-	instanceIndex int
+	c                 TaskCreator
+	q                 chan *url.URL
+	log               *log.Logger
+	addIn             time.Duration
+	addr              string
+	command           string
+	appGuid           string
+	instanceIndex     int
+	skipSSLValidation bool
 
 	mu        sync.Mutex
 	taskCount int
@@ -34,6 +35,7 @@ func NewWorkerPool(
 	command string,
 	appGuid string,
 	instanceIndex int,
+	skipSSLValidation bool,
 	addTaskThreshold time.Duration,
 	c TaskCreator,
 	log *log.Logger,
@@ -43,11 +45,12 @@ func NewWorkerPool(
 		c:   c,
 		q:   make(chan *url.URL),
 
-		addIn:         addTaskThreshold,
-		addr:          addr,
-		command:       command,
-		appGuid:       appGuid,
-		instanceIndex: instanceIndex,
+		addIn:             addTaskThreshold,
+		addr:              addr,
+		command:           command,
+		appGuid:           appGuid,
+		instanceIndex:     instanceIndex,
+		skipSSLValidation: skipSSLValidation,
 	}
 
 	go p.taskThreshold()
@@ -113,15 +116,21 @@ func (p *WorkerPool) taskThreshold() {
 }
 
 func (p *WorkerPool) buildCommand() string {
+	var skipSSLFlag string
+	if p.skipSSLValidation {
+		skipSSLFlag = " -k"
+	}
+
 	return fmt.Sprintf(`
 set -x
 while true
 do
 set -e
 
+export SKIP_SSL_VALIDATION="%v"
 export X_CF_APP_INSTANCE="%s:%d"
 
-export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s %s -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)
+export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s%s %s -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" | jq -r .href)
 if [ -z "$CF_FAAS_RELAY_ADDR" ]; then
 	echo "failed to fetch work... exiting"
 	exit 0
@@ -131,5 +140,5 @@ set +e
 
 %s
 done
-`, p.appGuid, p.instanceIndex, p.addr, p.command)
+`, p.skipSSLValidation, p.appGuid, p.instanceIndex, skipSSLFlag, p.addr, p.command)
 }

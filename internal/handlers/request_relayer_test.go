@@ -55,6 +55,8 @@ func TestRequestRelayer(t *testing.T) {
 
 		req, err = http.NewRequest("GET", addr.String(), bytes.NewReader(nil))
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
+
 		t.r.ServeHTTP(t.recorder, req)
 		Expect(t, t.recorder.Code).To(Equal(http.StatusOK))
 
@@ -84,6 +86,8 @@ func TestRequestRelayer(t *testing.T) {
 		`, base64.StdEncoding.EncodeToString([]byte("hello")))))
 
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
+
 		t.r.ServeHTTP(t.recorder, req)
 		Expect(t, t.recorder.Code).To(Equal(http.StatusOK))
 
@@ -91,6 +95,32 @@ func TestRequestRelayer(t *testing.T) {
 		Expect(t, err).To(BeNil())
 		Expect(t, resp.StatusCode).To(Equal(234))
 		Expect(t, string(resp.Body)).To(Equal("hello"))
+	})
+
+	o.Spec("it rejects requests that dont have X-Forwarded-Proto for HTTPS", func(t TR) {
+		req, err := http.NewRequest("PUT", "http://some.url/v1/some-path", bytes.NewReader(nil))
+		Expect(t, err).To(BeNil())
+
+		addr, _, err := t.r.Relay(req)
+		Expect(t, err).To(BeNil())
+
+		req, err = http.NewRequest("GET", addr.String(), bytes.NewReader(nil))
+		Expect(t, err).To(BeNil())
+
+		t.r.ServeHTTP(t.recorder, req)
+		Expect(t, t.recorder.Code).To(Equal(http.StatusBadRequest))
+
+		req, err = http.NewRequest("POST", addr.String(), strings.NewReader(fmt.Sprintf(`
+		{
+			"status_code":234,
+			"body": %q
+		}
+		`, base64.StdEncoding.EncodeToString([]byte("hello")))))
+
+		Expect(t, err).To(BeNil())
+		t.recorder = httptest.NewRecorder()
+		t.r.ServeHTTP(t.recorder, req)
+		Expect(t, t.recorder.Code).To(Equal(http.StatusBadRequest))
 	})
 
 	o.Spec("it writes 500 to ResponseWriter on invalid POST", func(t TR) {
@@ -102,6 +132,7 @@ func TestRequestRelayer(t *testing.T) {
 
 		req, err = http.NewRequest("POST", addr.String(), strings.NewReader("invalid"))
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
 		t.r.ServeHTTP(t.recorder, req)
 
 		_, err = f()
@@ -138,11 +169,14 @@ func TestRequestRelayer(t *testing.T) {
 
 		req, err = http.NewRequest("GET", addr.String(), bytes.NewReader(nil))
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
+
 		t.r.ServeHTTP(t.recorder, req)
 		Expect(t, t.recorder.Code).To(Equal(http.StatusNotFound))
 
 		req, err = http.NewRequest("POST", addr.String(), bytes.NewReader(nil))
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
 
 		t.recorder = httptest.NewRecorder()
 		t.r.ServeHTTP(t.recorder, req)
@@ -152,6 +186,7 @@ func TestRequestRelayer(t *testing.T) {
 	o.Spec("it returns a 404 for an unknown ID", func(t TR) {
 		req, err := http.NewRequest("GET", "http://some.url/invalid", bytes.NewReader(nil))
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
 
 		t.r.ServeHTTP(t.recorder, req)
 		Expect(t, t.recorder.Code).To(Equal(http.StatusNotFound))
@@ -160,6 +195,7 @@ func TestRequestRelayer(t *testing.T) {
 	o.Spec("it returns a 405 for non GET or POST", func(t TR) {
 		req, err := http.NewRequest("PUT", "http://some.url", bytes.NewReader(nil))
 		Expect(t, err).To(BeNil())
+		req.Header.Set("X-Forwarded-Proto", "https")
 
 		t.r.ServeHTTP(t.recorder, req)
 		Expect(t, t.recorder.Code).To(Equal(http.StatusMethodNotAllowed))

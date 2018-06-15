@@ -63,6 +63,18 @@ func TestWorkerPool(t *testing.T) {
 		Expect(t, t.recorder.Code).To(Equal(http.StatusOK))
 	})
 
+	o.Spec("adheres to the request context", func(t TP) {
+		go t.p.SubmitWork(context.Background(), t.u)
+		req, err := http.NewRequest("GET", "http://some.url", nil)
+		Expect(t, err).To(BeNil())
+		ctx, cancel := context.WithCancel(context.Background())
+		req = req.WithContext(ctx)
+		cancel()
+
+		t.p.ServeHTTP(t.recorder, req)
+		Expect(t, t.recorder.Body.Bytes()).To(HaveLen(0))
+	})
+
 	o.Spec("only spin up 5 tasks at a time", func(t TP) {
 		for i := 0; i < 100; i++ {
 			go t.p.SubmitWork(context.Background(), t.u)

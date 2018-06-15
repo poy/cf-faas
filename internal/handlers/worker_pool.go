@@ -14,7 +14,7 @@ import (
 type WorkerPool struct {
 	c       TaskCreator
 	f       TokenFetcher
-	q       chan *url.URL
+	q       chan work
 	log     *log.Logger
 	addIn   time.Duration
 	addr    string
@@ -28,6 +28,11 @@ type WorkerPool struct {
 
 	mu        sync.Mutex
 	taskCount int
+}
+
+type work struct {
+	u   *url.URL
+	ctx context.Context
 }
 
 type TaskCreator interface {
@@ -61,7 +66,7 @@ func NewWorkerPool(
 		log: log,
 		c:   c,
 		f:   f,
-		q:   make(chan *url.URL),
+		q:   make(chan work),
 
 		addIn:             addTaskThreshold,
 		addr:              addr,
@@ -84,18 +89,27 @@ func (p *WorkerPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := <-p.q
+	ctx, _ := context.WithTimeout(r.Context(), 30*time.Second)
+
+	var wo work
+	select {
+	case wo = <-p.q:
+	case <-ctx.Done():
+		return
+	}
 
 	data, err := json.Marshal(struct {
 		Href string `json:"href"`
 	}{
-		Href: u.String(),
+		Href: wo.u.String(),
 	})
 	if err != nil {
 		p.log.Panicf("failed to marshal data: %s", err)
 	}
 
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		go p.SubmitWork(wo.ctx, wo.u)
+	}
 }
 
 func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
@@ -106,7 +120,7 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
 		select {
 		case <-ctx.Done():
 			return
-		case p.q <- u:
+		case p.q <- work{u: u, ctx: ctx}:
 			return
 		case <-timer.C:
 			if p.tryAddToThreshold() {

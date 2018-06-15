@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/apoydence/cf-faas/api"
+	"github.com/apoydence/cf-faas"
 )
 
 type HTTPEvent struct {
@@ -22,7 +22,7 @@ type HTTPEvent struct {
 }
 
 type Relayer interface {
-	Relay(r *http.Request) (*url.URL, func() (api.Response, error), error)
+	Relay(r *http.Request) (*url.URL, func() (faas.Response, error), error)
 }
 
 type WorkSubmitter interface {

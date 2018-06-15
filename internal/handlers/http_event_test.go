@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/apoydence/cf-faas/api"
+	"github.com/apoydence/cf-faas"
 	"github.com/apoydence/cf-faas/internal/handlers"
 	"github.com/apoydence/onpar"
 	. "github.com/apoydence/onpar/expect"
@@ -70,8 +70,8 @@ func TestHTTPEvent(t *testing.T) {
 		Expect(t, t.spyRelayer.r.URL).To(Equal(req.URL))
 	})
 
-	o.Spec("it should return the api.Response", func(t TE) {
-		t.spyRelayer.resp = api.Response{
+	o.Spec("it should return the faas.Response", func(t TE) {
+		t.spyRelayer.resp = faas.Response{
 			StatusCode: 234,
 			Body:       []byte("some-data"),
 		}
@@ -151,7 +151,7 @@ type spyRelayer struct {
 	u   *url.URL
 	err error
 
-	resp    api.Response
+	resp    faas.Response
 	respErr error
 }
 
@@ -165,13 +165,13 @@ func newSpyRelayer() *spyRelayer {
 	}
 }
 
-func (s *spyRelayer) Relay(r *http.Request) (*url.URL, func() (api.Response, error), error) {
+func (s *spyRelayer) Relay(r *http.Request) (*url.URL, func() (faas.Response, error), error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.ctx = r.Context()
 	s.r = r
-	return s.u, func() (api.Response, error) {
+	return s.u, func() (faas.Response, error) {
 		if s.block {
 			var wg sync.WaitGroup
 			wg.Add(1)

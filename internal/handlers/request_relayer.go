@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apoydence/cf-faas/api"
+	"github.com/apoydence/cf-faas"
 )
 
 type RequestRelayer struct {
@@ -22,9 +22,9 @@ type RequestRelayer struct {
 
 	mu sync.Mutex
 	m  map[string]struct {
-		writer chan<- api.Response
+		writer chan<- faas.Response
 		errs   chan<- error
-		req    *api.Request
+		req    *faas.Request
 	}
 }
 
@@ -34,14 +34,14 @@ func NewRequestRelayer(addr, pathPrefix string, log *log.Logger) *RequestRelayer
 		addr:       addr,
 		pathPrefix: pathPrefix,
 		m: make(map[string]struct {
-			writer chan<- api.Response
+			writer chan<- faas.Response
 			errs   chan<- error
-			req    *api.Request
+			req    *faas.Request
 		}),
 	}
 }
 
-func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (api.Response, error), error) {
+func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (faas.Response, error), error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	path := fmt.Sprintf("/%s/%d%d", r.pathPrefix, rand.Int63(), time.Now().UnixNano())
@@ -51,14 +51,14 @@ func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (api.Respons
 		return nil, nil, err
 	}
 
-	wc, we := make(chan api.Response, 1), make(chan error, 1)
+	wc, we := make(chan faas.Response, 1), make(chan error, 1)
 
 	r.m[path] = struct {
-		writer chan<- api.Response
+		writer chan<- faas.Response
 		errs   chan<- error
-		req    *api.Request
+		req    *faas.Request
 	}{
-		req: &api.Request{
+		req: &faas.Request{
 			Path:    req.URL.Path,
 			Method:  req.Method,
 			Body:    body,
@@ -73,7 +73,7 @@ func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (api.Respons
 		return nil, nil, err
 	}
 
-	return u, func() (api.Response, error) {
+	return u, func() (faas.Response, error) {
 		defer func() {
 			r.mu.Lock()
 			defer r.mu.Unlock()
@@ -82,11 +82,11 @@ func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (api.Respons
 
 		select {
 		case <-req.Context().Done():
-			return api.Response{}, req.Context().Err()
+			return faas.Response{}, req.Context().Err()
 		case resp := <-wc:
 			return resp, nil
 		case err := <-we:
-			return api.Response{}, err
+			return faas.Response{}, err
 		}
 	}, nil
 }
@@ -125,7 +125,7 @@ func (r *RequestRelayer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		var resp api.Response
+		var resp faas.Response
 		if err := json.NewDecoder(req.Body).Decode(&resp); err != nil {
 			r.log.Printf("failed to unmarshal response from POST request: %s", err)
 			w.WriteHeader(http.StatusExpectationFailed)

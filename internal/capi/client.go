@@ -15,26 +15,132 @@ import (
 )
 
 type Client struct {
-	addr     string
-	appGuid  string
-	doer     Doer
-	interval time.Duration
+	addr      string
+	appGuid   string
+	spaceGuid string
+	doer      Doer
+	interval  time.Duration
 }
 
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func NewClient(addr, appGuid string, interval time.Duration, d Doer) *Client {
+func NewClient(addr, appGuid, spaceGuid string, interval time.Duration, d Doer) *Client {
 	return &Client{
-		doer:     d,
-		addr:     addr,
-		appGuid:  appGuid,
-		interval: interval,
+		doer:      d,
+		addr:      addr,
+		appGuid:   appGuid,
+		spaceGuid: spaceGuid,
+		interval:  interval,
 	}
 }
 
-func (c *Client) CreateTask(ctx context.Context, command string) error {
+func (c *Client) GetAppGuid(ctx context.Context, appName string) (string, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/apps?q=name%%3A%s&q=space_guid%%3A%s", c.addr, appName, c.spaceGuid))
+	if err != nil {
+		return "", err
+	}
+
+	req := &http.Request{
+		URL:    u,
+		Method: "GET",
+		Header: http.Header{
+			"Accept": []string{"application/json"},
+		},
+	}
+	req = req.WithContext(ctx)
+
+	resp, err := c.doer.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer func(resp *http.Response) {
+		// Fail safe to ensure the clients are being cleaned up
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+
+		return "", fmt.Errorf("unexpected response %d: %s", resp.StatusCode, data)
+	}
+
+	var result struct {
+		Resources []struct {
+			MetaData struct {
+				Guid string `json:"guid"`
+			} `json:"metadata"`
+		} `json:"resources"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Resources) == 0 {
+		return "", errors.New("empty results")
+	}
+
+	return result.Resources[0].MetaData.Guid, nil
+}
+
+func (c *Client) GetDropletGuid(ctx context.Context, appGuid string) (string, error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v3/apps/%s/droplets/current", c.addr, appGuid))
+	if err != nil {
+		return "", err
+	}
+
+	req := &http.Request{
+		URL:    u,
+		Method: "GET",
+		Header: http.Header{
+			"Accept": []string{"application/json"},
+		},
+	}
+	req = req.WithContext(ctx)
+
+	resp, err := c.doer.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer func(resp *http.Response) {
+		// Fail safe to ensure the clients are being cleaned up
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+
+		return "", fmt.Errorf("unexpected response %d: %s", resp.StatusCode, data)
+	}
+
+	var result struct {
+		Guid string `json:"guid"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if result.Guid == "" {
+		return "", errors.New("empty results")
+	}
+
+	return result.Guid, nil
+}
+
+func (c *Client) CreateTask(ctx context.Context, command, dropletGuid string) error {
 	u, err := url.Parse(c.addr)
 	if err != nil {
 		return err
@@ -42,9 +148,11 @@ func (c *Client) CreateTask(ctx context.Context, command string) error {
 	u.Path = fmt.Sprintf("/v3/apps/%s/tasks", c.appGuid)
 
 	marshalled, err := json.Marshal(struct {
-		Command string `json:"command"`
+		Command     string `json:"command"`
+		DropletGuid string `json:"droplet_guid,omitempty"`
 	}{
-		Command: command,
+		Command:     command,
+		DropletGuid: dropletGuid,
 	})
 	if err != nil {
 		return err

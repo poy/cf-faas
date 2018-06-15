@@ -12,14 +12,17 @@ import (
 )
 
 type WorkerPool struct {
-	c                 TaskCreator
-	f                 TokenFetcher
-	q                 chan *url.URL
-	log               *log.Logger
-	addIn             time.Duration
-	addr              string
-	command           string
-	appGuid           string
+	c       TaskCreator
+	f       TokenFetcher
+	q       chan *url.URL
+	log     *log.Logger
+	addIn   time.Duration
+	addr    string
+	command string
+	appGuid string
+
+	dropletAppName    string
+	dropletFetcher    DropletGuidFetcher
 	instanceIndex     int
 	skipSSLValidation bool
 
@@ -28,17 +31,25 @@ type WorkerPool struct {
 }
 
 type TaskCreator interface {
-	CreateTask(ctx context.Context, command string) error
+	CreateTask(ctx context.Context, command, dropletGuid string) error
 }
 
 type TokenFetcher interface {
 	Token() (string, error)
 }
 
+type DropletGuidFetcher interface {
+	FetchGuid(ctx context.Context, appName string) (string, error)
+}
+
 func NewWorkerPool(
 	addr string,
 	command string,
 	appGuid string,
+
+	dropletAppName string,
+	dropletFetcher DropletGuidFetcher,
+
 	instanceIndex int,
 	skipSSLValidation bool,
 	addTaskThreshold time.Duration,
@@ -56,6 +67,8 @@ func NewWorkerPool(
 		addr:              addr,
 		command:           command,
 		appGuid:           appGuid,
+		dropletAppName:    dropletAppName,
+		dropletFetcher:    dropletFetcher,
 		instanceIndex:     instanceIndex,
 		skipSSLValidation: skipSSLValidation,
 	}
@@ -103,7 +116,13 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
 					continue
 				}
 
-				go p.c.CreateTask(context.Background(), p.buildCommand(token))
+				dropletGuid, err := p.dropletFetcher.FetchGuid(ctx, p.dropletAppName)
+				if err != nil {
+					log.Printf("failed to fetch droplet guid: %s", err)
+					continue
+				}
+
+				go p.c.CreateTask(context.Background(), p.buildCommand(token), dropletGuid)
 			}
 		}
 	}

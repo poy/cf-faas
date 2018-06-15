@@ -19,11 +19,12 @@ import (
 
 type TP struct {
 	*testing.T
-	spyTaskCreator  *spyTaskCreator
-	spyTokenFetcher *spyTokenFetcher
-	p               *handlers.WorkerPool
-	recorder        *httptest.ResponseRecorder
-	u               *url.URL
+	spyTaskCreator    *spyTaskCreator
+	spyTokenFetcher   *spyTokenFetcher
+	spyDropletFetcher *spyDropletFetcher
+	p                 *handlers.WorkerPool
+	recorder          *httptest.ResponseRecorder
+	u                 *url.URL
 }
 
 func TestWorkerPool(t *testing.T) {
@@ -34,18 +35,20 @@ func TestWorkerPool(t *testing.T) {
 	o.BeforeEach(func(t *testing.T) TP {
 		spyTaskCreator := newSpyTaskCreator()
 		spyTokenFetcher := newSpyTokenFetcher()
+		spyDropletFetcher := newSpyDropletFetcher()
 		u, err := url.Parse("http://some-addr.url")
 		if err != nil {
 			panic(err)
 		}
 
 		return TP{
-			T:               t,
-			u:               u,
-			spyTokenFetcher: spyTokenFetcher,
-			spyTaskCreator:  spyTaskCreator,
-			recorder:        httptest.NewRecorder(),
-			p:               handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", 99, true, time.Millisecond, spyTaskCreator, spyTokenFetcher, log.New(ioutil.Discard, "", 0)),
+			T:                 t,
+			u:                 u,
+			spyTokenFetcher:   spyTokenFetcher,
+			spyDropletFetcher: spyDropletFetcher,
+			spyTaskCreator:    spyTaskCreator,
+			recorder:          httptest.NewRecorder(),
+			p:                 handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", "app-name", spyDropletFetcher, 99, true, time.Millisecond, spyTaskCreator, spyTokenFetcher, log.New(ioutil.Discard, "", 0)),
 		}
 	})
 
@@ -70,7 +73,9 @@ func TestWorkerPool(t *testing.T) {
 
 	o.Spec("schedules a new task if the work just sits", func(t TP) {
 		t.spyTokenFetcher.token = "some-token"
-		go t.p.SubmitWork(context.Background(), t.u)
+		t.spyDropletFetcher.guid = "droplet-guid"
+		ctx, _ := context.WithCancel(context.Background())
+		go t.p.SubmitWork(ctx, t.u)
 
 		Expect(t, t.spyTaskCreator.Command).To(ViaPolling(Not(HaveLen(0))))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`while true`))
@@ -81,10 +86,15 @@ func TestWorkerPool(t *testing.T) {
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s -k https://some.url -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" -H "Authorization: $CF_AUTH_TOKEN" | jq -r .href)`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`if [ -z "$CF_FAAS_RELAY_ADDR" ]; then`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring("some-command"))
+
+		Expect(t, t.spyTaskCreator.DropletGuid()).To(Equal("droplet-guid"))
+
+		Expect(t, t.spyDropletFetcher.ctx).To(Equal(ctx))
+		Expect(t, t.spyDropletFetcher.appName).To(Equal("app-name"))
 	})
 
 	o.Spec("does not skip SSL validation unless SKIP_SSL_VALIDATION is true", func(t TP) {
-		t.p = handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", 99, false, time.Millisecond, t.spyTaskCreator, t.spyTokenFetcher, log.New(ioutil.Discard, "", 0))
+		t.p = handlers.NewWorkerPool("https://some.url", "some-command", "app-guid", "app-name", t.spyDropletFetcher, 99, false, time.Millisecond, t.spyTaskCreator, t.spyTokenFetcher, log.New(ioutil.Discard, "", 0))
 		go t.p.SubmitWork(context.Background(), t.u)
 
 		Expect(t, t.spyTaskCreator.Command).To(ViaPolling(Not(HaveLen(0))))
@@ -102,23 +112,25 @@ func TestWorkerPool(t *testing.T) {
 }
 
 type spyTaskCreator struct {
-	mu      sync.Mutex
-	ctx     context.Context
-	command string
-	err     error
-	called  int
+	mu          sync.Mutex
+	ctx         context.Context
+	command     string
+	dropletGuid string
+	err         error
+	called      int
 }
 
 func newSpyTaskCreator() *spyTaskCreator {
 	return &spyTaskCreator{}
 }
 
-func (s *spyTaskCreator) CreateTask(ctx context.Context, command string) error {
+func (s *spyTaskCreator) CreateTask(ctx context.Context, command, dropletGuid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.called++
 	s.ctx = ctx
 	s.command = command
+	s.dropletGuid = dropletGuid
 	return s.err
 }
 
@@ -126,6 +138,12 @@ func (s *spyTaskCreator) Command() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.command
+}
+
+func (s *spyTaskCreator) DropletGuid() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.dropletGuid
 }
 
 func (s *spyTaskCreator) Called() int {
@@ -145,4 +163,22 @@ func newSpyTokenFetcher() *spyTokenFetcher {
 
 func (s *spyTokenFetcher) Token() (string, error) {
 	return s.token, s.err
+}
+
+type spyDropletFetcher struct {
+	ctx     context.Context
+	appName string
+
+	guid string
+	err  error
+}
+
+func newSpyDropletFetcher() *spyDropletFetcher {
+	return &spyDropletFetcher{}
+}
+
+func (s *spyDropletFetcher) FetchGuid(ctx context.Context, appName string) (string, error) {
+	s.ctx = ctx
+	s.appName = appName
+	return s.guid, s.err
 }

@@ -58,10 +58,12 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 	capiClient := capi.NewClient(
 		cfg.VcapApplication.CAPIAddr,
 		cfg.VcapApplication.ApplicationID,
+		cfg.VcapApplication.SpaceID,
 		time.Second,
 		http.DefaultClient,
 	)
 
+	dropletGuidFetcher := capi.NewDropletGuidFetcher(capiClient)
 	tokenFetcher := capi.NewTokenFetcher(fmt.Sprintf("http://localhost:%d", cfg.TokenPort), http.DefaultClient)
 
 	for _, f := range manifest.Functions {
@@ -71,7 +73,9 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 			poolAddr,
 			f.Handler.Command,
 			cfg.VcapApplication.ApplicationID,
-			cfg.CFInstanceIndex,
+			f.Handler.AppName,
+			dropletGuidFetcher,
+			cfg.InstanceIndex,
 			cfg.SkipSSLValidation,
 			time.Second,
 			capiClient,

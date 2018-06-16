@@ -2,9 +2,12 @@ package capi
 
 import (
 	"context"
+	"sync"
 )
 
 type DropletGuidFetcher struct {
+	mu sync.RWMutex
+
 	c DropletClient
 }
 
@@ -19,15 +22,20 @@ func NewDropletGuidFetcher(c DropletClient) *DropletGuidFetcher {
 	}
 }
 
-func (f *DropletGuidFetcher) FetchGuid(ctx context.Context, appName string) (string, error) {
+func (f *DropletGuidFetcher) FetchGuid(ctx context.Context, appName string) (appGuid, dropletGuid string, err error) {
 	if appName == "" {
-		return "", nil
+		return "", "", nil
 	}
 
-	appGuid, err := f.c.GetAppGuid(ctx, appName)
+	appGuid, err = f.c.GetAppGuid(ctx, appName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return f.c.GetDropletGuid(ctx, appGuid)
+	dropletGuid, err = f.c.GetDropletGuid(ctx, appGuid)
+	if err != nil {
+		return "", "", err
+	}
+
+	return appGuid, dropletGuid, nil
 }

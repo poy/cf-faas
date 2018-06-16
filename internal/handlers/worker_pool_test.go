@@ -86,6 +86,7 @@ func TestWorkerPool(t *testing.T) {
 	o.Spec("schedules a new task if the work just sits", func(t TP) {
 		t.spyTokenFetcher.token = "some-token"
 		t.spyDropletFetcher.guid = "droplet-guid"
+		t.spyDropletFetcher.appGuid = "app-guid"
 		ctx, _ := context.WithCancel(context.Background())
 		go t.p.SubmitWork(ctx, t.u)
 
@@ -99,6 +100,7 @@ func TestWorkerPool(t *testing.T) {
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring(`if [ -z "$CF_FAAS_RELAY_ADDR" ]; then`))
 		Expect(t, t.spyTaskCreator.Command()).To(ContainSubstring("some-command"))
 
+		Expect(t, t.spyTaskCreator.AppGuid()).To(Equal("app-guid"))
 		Expect(t, t.spyTaskCreator.DropletGuid()).To(Equal("droplet-guid"))
 
 		Expect(t, t.spyDropletFetcher.ctx).To(Equal(ctx))
@@ -127,6 +129,7 @@ type spyTaskCreator struct {
 	mu          sync.Mutex
 	ctx         context.Context
 	command     string
+	appGuid     string
 	dropletGuid string
 	err         error
 	called      int
@@ -136,12 +139,13 @@ func newSpyTaskCreator() *spyTaskCreator {
 	return &spyTaskCreator{}
 }
 
-func (s *spyTaskCreator) CreateTask(ctx context.Context, command, dropletGuid string) error {
+func (s *spyTaskCreator) CreateTask(ctx context.Context, command, appGuid, dropletGuid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.called++
 	s.ctx = ctx
 	s.command = command
+	s.appGuid = appGuid
 	s.dropletGuid = dropletGuid
 	return s.err
 }
@@ -150,6 +154,12 @@ func (s *spyTaskCreator) Command() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.command
+}
+
+func (s *spyTaskCreator) AppGuid() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.appGuid
 }
 
 func (s *spyTaskCreator) DropletGuid() string {
@@ -180,6 +190,7 @@ func (s *spyTokenFetcher) Token() (string, error) {
 type spyDropletFetcher struct {
 	ctx     context.Context
 	appName string
+	appGuid string
 
 	guid string
 	err  error
@@ -189,8 +200,8 @@ func newSpyDropletFetcher() *spyDropletFetcher {
 	return &spyDropletFetcher{}
 }
 
-func (s *spyDropletFetcher) FetchGuid(ctx context.Context, appName string) (string, error) {
+func (s *spyDropletFetcher) FetchGuid(ctx context.Context, appName string) (string, string, error) {
 	s.ctx = ctx
 	s.appName = appName
-	return s.guid, s.err
+	return s.appGuid, s.guid, s.err
 }

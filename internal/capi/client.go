@@ -140,12 +140,16 @@ func (c *Client) GetDropletGuid(ctx context.Context, appGuid string) (string, er
 	return result.Guid, nil
 }
 
-func (c *Client) CreateTask(ctx context.Context, command, dropletGuid string) error {
+func (c *Client) CreateTask(ctx context.Context, command, appGuid, dropletGuid string) error {
+	if appGuid == "" {
+		appGuid = c.appGuid
+	}
+
 	u, err := url.Parse(c.addr)
 	if err != nil {
 		return err
 	}
-	u.Path = fmt.Sprintf("/v3/apps/%s/tasks", c.appGuid)
+	u.Path = fmt.Sprintf("/v3/apps/%s/tasks", appGuid)
 
 	marshalled, err := json.Marshal(struct {
 		Command     string `json:"command"`

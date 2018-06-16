@@ -36,7 +36,7 @@ type work struct {
 }
 
 type TaskCreator interface {
-	CreateTask(ctx context.Context, command, dropletGuid string) error
+	CreateTask(ctx context.Context, command, appGuid, dropletGuid string) error
 }
 
 type TokenFetcher interface {
@@ -44,7 +44,7 @@ type TokenFetcher interface {
 }
 
 type DropletGuidFetcher interface {
-	FetchGuid(ctx context.Context, appName string) (string, error)
+	FetchGuid(ctx context.Context, appName string) (appGuid, dropletGuid string, err error)
 }
 
 func NewWorkerPool(
@@ -130,13 +130,17 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
 					continue
 				}
 
-				dropletGuid, err := p.dropletFetcher.FetchGuid(ctx, p.dropletAppName)
+				appGuid, dropletGuid, err := p.dropletFetcher.FetchGuid(ctx, p.dropletAppName)
 				if err != nil {
 					log.Printf("failed to fetch droplet guid: %s", err)
 					continue
 				}
 
-				go p.c.CreateTask(context.Background(), p.buildCommand(token), dropletGuid)
+				go func() {
+					if err := p.c.CreateTask(context.Background(), p.buildCommand(token), appGuid, dropletGuid); err != nil {
+						log.Printf("creating a task failed: %s", err)
+					}
+				}()
 			}
 		}
 	}

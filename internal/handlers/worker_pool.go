@@ -113,10 +113,10 @@ func (p *WorkerPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
-	for {
-		timer := time.NewTimer(p.addIn)
-		defer timer.Stop()
+	timer := time.NewTimer(p.addIn)
+	defer timer.Stop()
 
+	for {
 		select {
 		case <-ctx.Done():
 			return
@@ -124,19 +124,19 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
 			return
 		case <-timer.C:
 			if p.tryAddToThreshold() {
-				token, err := p.f.Token()
-				if err != nil {
-					log.Printf("failed to fetch token: %s", err)
-					continue
-				}
-
-				appGuid, dropletGuid, err := p.dropletFetcher.FetchGuid(ctx, p.dropletAppName)
-				if err != nil {
-					log.Printf("failed to fetch droplet guid: %s", err)
-					continue
-				}
-
 				go func() {
+					token, err := p.f.Token()
+					if err != nil {
+						log.Printf("failed to fetch token: %s", err)
+						return
+					}
+
+					appGuid, dropletGuid, err := p.dropletFetcher.FetchGuid(ctx, p.dropletAppName)
+					if err != nil {
+						log.Printf("failed to fetch droplet guid: %s", err)
+						return
+					}
+
 					if err := p.c.CreateTask(context.Background(), p.buildCommand(token), appGuid, dropletGuid); err != nil {
 						log.Printf("creating a task failed: %s", err)
 					}

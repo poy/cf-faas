@@ -53,6 +53,7 @@ func main() {
 	runner := scheduler.NewRunner(
 		packManager,
 		exec,
+		http.DefaultClient,
 		map[string]string{
 			"HTTP_PROXY":        cfg.HTTPProxy,
 			"X_CF_APP_INSTANCE": cfg.AppInstance,

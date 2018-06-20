@@ -1,7 +1,11 @@
 package scheduler
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/apoydence/cf-faas/internal/internalapi"
 )
@@ -23,14 +27,22 @@ func (f ExecutorFunc) Execute(cwd string, envs map[string]string, command string
 type Runner struct {
 	m    PackageManager
 	e    Executor
+	d    Doer
 	envs map[string]string
 	log  *log.Logger
 }
 
-func NewRunner(m PackageManager, e Executor, envs map[string]string, log *log.Logger) *Runner {
+func NewRunner(
+	m PackageManager,
+	e Executor,
+	d Doer,
+	envs map[string]string,
+	log *log.Logger,
+) *Runner {
 	return &Runner{
 		m:    m,
 		e:    e,
+		d:    d,
 		envs: envs,
 		log:  log,
 	}
@@ -50,5 +62,17 @@ func (r *Runner) Submit(work internalapi.Work) {
 		envs[k] = v
 	}
 
-	r.e.Execute(path, envs, work.Command)
+	if err := r.e.Execute(path, envs, work.Command); err != nil {
+		req, err := http.NewRequest(http.MethodPost, work.Href, strings.NewReader(`{"status_code":500}`))
+		if err != nil {
+			r.log.Printf("failed to build request: %s", err)
+		}
+
+		ctx, _ := context.WithTimeout(context.Background(), time.Second)
+		req = req.WithContext(ctx)
+
+		if _, err := r.d.Do(req); err != nil {
+			r.log.Printf("failed to submit request: %s", err)
+		}
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"testing"
 
 	"github.com/apoydence/cf-faas/internal/internalapi"
@@ -17,6 +18,7 @@ type TR struct {
 	*testing.T
 	spyPackageManager *spyPackageManager
 	spyExecutor       *spyExecutor
+	spyDoer           *spyDoer
 	r                 *scheduler.Runner
 }
 
@@ -28,11 +30,13 @@ func TestRunenr(t *testing.T) {
 	o.BeforeEach(func(t *testing.T) TR {
 		spyPackageManager := newSpyPackageManager()
 		spyExecutor := newSpyExecutor()
+		spyDoer := newSpyDoer()
 		return TR{
 			T:                 t,
 			spyPackageManager: spyPackageManager,
 			spyExecutor:       spyExecutor,
-			r:                 scheduler.NewRunner(spyPackageManager, spyExecutor, map[string]string{"a": "b", "c": "d"}, log.New(ioutil.Discard, "", 0)),
+			spyDoer:           spyDoer,
+			r:                 scheduler.NewRunner(spyPackageManager, spyExecutor, spyDoer, map[string]string{"a": "b", "c": "d"}, log.New(ioutil.Discard, "", 0)),
 		}
 	})
 
@@ -61,6 +65,23 @@ func TestRunenr(t *testing.T) {
 			AppName: "some-app-name",
 		})
 		Expect(t, t.spyExecutor.cwd).To(Equal(""))
+	})
+
+	o.Spec("it sends a 500 to the client if the executor fails", func(t TR) {
+		t.spyExecutor.err = errors.New("some-error")
+		t.r.Submit(internalapi.Work{
+			Href:    "http://some.work",
+			Command: "some-command",
+			AppName: "some-app-name",
+		})
+
+		Expect(t, t.spyDoer.req).To(Not(BeNil()))
+		Expect(t, t.spyDoer.req.URL.String()).To(Equal("http://some.work"))
+		Expect(t, t.spyDoer.req.Method).To(Equal(http.MethodPost))
+		Expect(t, t.spyDoer.body).To(MatchJSON(`{"status_code":500}`))
+
+		_, ok := t.spyDoer.req.Context().Deadline()
+		Expect(t, ok).To(BeTrue())
 	})
 }
 

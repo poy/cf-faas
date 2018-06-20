@@ -90,7 +90,7 @@ func TestFaas(t *testing.T) {
 			execPath: path,
 		}
 
-		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer r.Body.Close()
 
 			tf.mu.Lock()
@@ -143,11 +143,9 @@ func TestFaas(t *testing.T) {
 		Expect(t, t.Requests).To(ViaPolling(HaveLen(2)))
 
 		Expect(t, t.Requests()[0].Method).To(Equal(http.MethodGet))
-		Expect(t, t.Requests()[0].Header.Get("Authorization")).To(Equal("some-token"))
 		Expect(t, t.Requests()[0].Header.Get("X-CF-APP-INSTANCE")).To(Equal("some-app-instance"))
 
 		Expect(t, t.Requests()[1].Method).To(Equal(http.MethodPost))
-		Expect(t, t.Requests()[1].Header.Get("Authorization")).To(Equal("some-token"))
 		Expect(t, t.Requests()[1].Header.Get("X-CF-APP-INSTANCE")).To(Equal("some-app-instance"))
 
 		Expect(t, t.Responses()[1].StatusCode).To(Equal(http.StatusOK))

@@ -13,6 +13,7 @@ import (
 
 	"github.com/apoydence/cf-faas"
 	"github.com/apoydence/cf-faas/internal/handlers"
+	"github.com/apoydence/cf-faas/internal/internalapi"
 	"github.com/apoydence/onpar"
 	. "github.com/apoydence/onpar/expect"
 	. "github.com/apoydence/onpar/matchers"
@@ -42,6 +43,7 @@ func TestHTTPEvent(t *testing.T) {
 			spyWorkSubmitter: spyWorkSubmitter,
 			h: handlers.NewHTTPEvent(
 				"some-command",
+				"some-app",
 				spyRelayer,
 				spyWorkSubmitter,
 				log.New(ioutil.Discard, "", 0),
@@ -58,7 +60,11 @@ func TestHTTPEvent(t *testing.T) {
 		Expect(t, err).To(BeNil())
 
 		t.h.ServeHTTP(t.recorder, req)
-		Expect(t, t.spyWorkSubmitter.u).To(Equal(u))
+		Expect(t, t.spyWorkSubmitter.w).To(Equal(internalapi.Work{
+			Href:    u.String(),
+			Command: "some-command",
+			AppName: "some-app",
+		}))
 	})
 
 	o.Spec("relayer should be given the request", func(t TE) {
@@ -185,14 +191,14 @@ func (s *spyRelayer) Relay(r *http.Request) (*url.URL, func() (faas.Response, er
 
 type spyWorkSubmitter struct {
 	ctx context.Context
-	u   *url.URL
+	w   internalapi.Work
 }
 
 func newSpyWorkSubmitter() *spyWorkSubmitter {
 	return &spyWorkSubmitter{}
 }
 
-func (s *spyWorkSubmitter) SubmitWork(ctx context.Context, u *url.URL) {
+func (s *spyWorkSubmitter) SubmitWork(ctx context.Context, w internalapi.Work) {
 	s.ctx = ctx
-	s.u = u
+	s.w = w
 }

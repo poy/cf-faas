@@ -9,23 +9,19 @@ import (
 )
 
 type Config struct {
-	Port       int `env:"PORT, required, report"`
-	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
-	TokenPort  int `env:"TOKEN_PORT, required, report"`
-
-	Manifest      string `env:"MANIFEST_PATH, required, report"`
-	InstanceIndex int    `env:"CF_INSTANCE_INDEX, required, report"`
+	PoolAddr    string   `env:"POOL_ADDR, required"`
+	AppInstance string   `env:"X_CF_APP_INSTANCE, required"`
+	AppNames    []string `env:"APP_NAMES, required"`
+	HTTPProxy   string   `env:"HTTP_PROXY, required"`
+	DataDir     string   `env:"DATA_DIR, required"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
-
-	SkipSSLValidation bool `env:"SKIP_SSL_VALIDATION, report"`
 }
 
 type VcapApplication struct {
 	CAPIAddr        string   `json:"cf_api"`
-	ApplicationID   string   `json:"application_id"`
-	ApplicationName string   `json:"application_name"`
 	SpaceID         string   `json:"space_id"`
+	ApplicationID   string   `json:"application_id"`
 	ApplicationURIs []string `json:"application_uris"`
 }
 
@@ -41,8 +37,6 @@ func LoadConfig(log *log.Logger) Config {
 
 	// Use HTTP so we can use HTTP_PROXY
 	cfg.VcapApplication.CAPIAddr = strings.Replace(cfg.VcapApplication.CAPIAddr, "https", "http", 1)
-
-	envstruct.WriteReport(&cfg)
 
 	return cfg
 }

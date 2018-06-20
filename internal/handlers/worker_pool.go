@@ -6,76 +6,52 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/apoydence/cf-faas/internal/internalapi"
 )
 
 type WorkerPool struct {
-	c       TaskCreator
-	f       TokenFetcher
-	q       chan work
-	log     *log.Logger
-	addIn   time.Duration
-	addr    string
-	command string
-	appGuid string
-
-	dropletAppName    string
-	dropletFetcher    DropletGuidFetcher
-	instanceIndex     int
-	skipSSLValidation bool
+	c           TaskCreator
+	q           chan work
+	log         *log.Logger
+	addIn       time.Duration
+	appInstance string
+	addr        string
+	appNames    []string
 
 	mu        sync.Mutex
 	taskCount int
 }
 
 type work struct {
-	u   *url.URL
+	w   internalapi.Work
 	ctx context.Context
 }
 
 type TaskCreator interface {
-	CreateTask(ctx context.Context, command, appGuid, dropletGuid string) error
-}
-
-type TokenFetcher interface {
-	Token() (string, error)
-}
-
-type DropletGuidFetcher interface {
-	FetchGuid(ctx context.Context, appName string) (appGuid, dropletGuid string, err error)
+	CreateTask(ctx context.Context, command string) error
 }
 
 func NewWorkerPool(
 	addr string,
-	command string,
-	appGuid string,
-
-	dropletAppName string,
-	dropletFetcher DropletGuidFetcher,
-
-	instanceIndex int,
-	skipSSLValidation bool,
+	appNames []string,
+	appInstance string,
 	addTaskThreshold time.Duration,
 	c TaskCreator,
-	f TokenFetcher,
 	log *log.Logger,
 ) *WorkerPool {
 	p := &WorkerPool{
 		log: log,
 		c:   c,
-		f:   f,
 		q:   make(chan work),
 
-		addIn:             addTaskThreshold,
-		addr:              addr,
-		command:           command,
-		appGuid:           appGuid,
-		dropletAppName:    dropletAppName,
-		dropletFetcher:    dropletFetcher,
-		instanceIndex:     instanceIndex,
-		skipSSLValidation: skipSSLValidation,
+		appInstance: appInstance,
+		appNames:    appNames,
+		addIn:       addTaskThreshold,
+		addr:        addr,
 	}
 
 	go p.taskThreshold()
@@ -98,21 +74,17 @@ func (p *WorkerPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := json.Marshal(struct {
-		Href string `json:"href"`
-	}{
-		Href: wo.u.String(),
-	})
+	data, err := json.Marshal(wo.w)
 	if err != nil {
 		p.log.Panicf("failed to marshal data: %s", err)
 	}
 
 	if _, err := w.Write(data); err != nil {
-		go p.SubmitWork(wo.ctx, wo.u)
+		go p.SubmitWork(wo.ctx, wo.w)
 	}
 }
 
-func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
+func (p *WorkerPool) SubmitWork(ctx context.Context, w internalapi.Work) {
 	timer := time.NewTimer(p.addIn)
 	defer timer.Stop()
 
@@ -120,24 +92,12 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, u *url.URL) {
 		select {
 		case <-ctx.Done():
 			return
-		case p.q <- work{u: u, ctx: ctx}:
+		case p.q <- work{w: w, ctx: ctx}:
 			return
 		case <-timer.C:
 			if p.tryAddToThreshold() {
 				go func() {
-					token, err := p.f.Token()
-					if err != nil {
-						log.Printf("failed to fetch token: %s", err)
-						return
-					}
-
-					appGuid, dropletGuid, err := p.dropletFetcher.FetchGuid(ctx, p.dropletAppName)
-					if err != nil {
-						log.Printf("failed to fetch droplet guid: %s", err)
-						return
-					}
-
-					if err := p.c.CreateTask(context.Background(), p.buildCommand(token), appGuid, dropletGuid); err != nil {
+					if err := p.c.CreateTask(context.Background(), p.buildCommand()); err != nil {
 						log.Printf("creating a task failed: %s", err)
 					}
 				}()
@@ -165,31 +125,33 @@ func (p *WorkerPool) taskThreshold() {
 	}
 }
 
-func (p *WorkerPool) buildCommand(token string) string {
-	var skipSSLFlag string
-	if p.skipSSLValidation {
-		skipSSLFlag = " -k"
-	}
+func (p *WorkerPool) buildCommand() string {
+	return fmt.Sprintf(`#!/bin/bash
 
-	return fmt.Sprintf(`
-set -x
+PORT=9999 PROXY_HEALTH_PORT=10000 ./proxy &
+echo $! > /tmp/pids
+sleep 2
+
+X_CF_APP_INSTANCE=%q APP_NAMES=%q HTTP_PROXY=http://localhost:9999 POOL_ADDR=%q ./worker &
+echo $! >> /tmp/pids
+
+# Close everything, otherwise the container won't be reset
+function kill_everything {
+    for pid in $(cat /tmp/pids)
+    do
+        kill -9 $pid &>/dev/null || true
+    done
+	exit 0
+}
+
+# Watch pids
 while true
 do
-set -e
-
-export CF_AUTH_TOKEN="%s"
-export SKIP_SSL_VALIDATION="%v"
-export X_CF_APP_INSTANCE="%s:%d"
-
-export CF_FAAS_RELAY_ADDR=$(timeout 30 curl -s%s %s -H "X-CF-APP-INSTANCE: $X_CF_APP_INSTANCE" -H "Authorization: $CF_AUTH_TOKEN" | jq -r .href)
-if [ -z "$CF_FAAS_RELAY_ADDR" ]; then
-	echo "failed to fetch work... exiting"
-	exit 0
-fi
-
-set +e
-
-%s
+    for pid in $(cat /tmp/pids)
+    do
+        ps -p $pid &> /dev/null || kill_everything
+    done
+    sleep 10
 done
-`, token, p.skipSSLValidation, p.appGuid, p.instanceIndex, skipSSLFlag, p.addr, p.command)
+`, p.appInstance, strings.Join(p.appNames, ","), p.addr)
 }

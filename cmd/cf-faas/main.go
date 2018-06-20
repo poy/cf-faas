@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/apoydence/cf-faas/internal/capi"
@@ -46,11 +47,11 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 
 	r := mux.NewRouter()
 
-	u, err := url.Parse(cfg.VcapApplication.ApplicationURIs[0])
+	u, err := url.Parse(strings.Replace(cfg.VcapApplication.ApplicationURIs[0], "https", "http", 1))
 	if err != nil {
 		log.Fatalf("failed to parse application URI: %s", err)
 	}
-	u.Scheme = "https"
+	u.Scheme = "http"
 
 	relayer := handlers.NewRequestRelayer(u.String(), fmt.Sprintf("%s/relayer", internalID), log)
 	r.Handle(fmt.Sprintf("/%s/relayer/{id}", internalID), relayer).Methods(http.MethodGet, http.MethodPost)
@@ -63,28 +64,40 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 		http.DefaultClient,
 	)
 
-	dropletGuidFetcher := capi.NewDropletGuidFetcher(capiClient)
-	tokenFetcher := capi.NewTokenFetcher(fmt.Sprintf("http://localhost:%d", cfg.TokenPort), http.DefaultClient)
+	var appNames []string
+	ma := map[string]bool{}
+	for _, f := range manifest.Functions {
+		if f.Handler.AppName == "" {
+			f.Handler.AppName = cfg.VcapApplication.ApplicationName
+		}
+
+		if ma[f.Handler.AppName] {
+			continue
+		}
+
+		ma[f.Handler.AppName] = true
+		appNames = append(appNames, f.Handler.AppName)
+	}
+
+	poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
+	poolAddr := fmt.Sprintf("http://%s%s", cfg.VcapApplication.ApplicationURIs[0], poolPath)
+	pool := handlers.NewWorkerPool(
+		poolAddr,
+		appNames,
+		fmt.Sprintf("%s:%d", cfg.VcapApplication.ApplicationID, cfg.InstanceIndex),
+		time.Second,
+		capiClient,
+		log,
+	)
+	r.Handle(poolPath, pool).Methods(http.MethodGet)
 
 	for _, f := range manifest.Functions {
-		poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
-		poolAddr := fmt.Sprintf("https://%s%s", cfg.VcapApplication.ApplicationURIs[0], poolPath)
-		pool := handlers.NewWorkerPool(
-			poolAddr,
-			f.Handler.Command,
-			cfg.VcapApplication.ApplicationID,
-			f.Handler.AppName,
-			dropletGuidFetcher,
-			cfg.InstanceIndex,
-			cfg.SkipSSLValidation,
-			time.Second,
-			capiClient,
-			tokenFetcher,
-			log,
-		)
-		r.Handle(poolPath, pool).Methods(http.MethodGet)
+		appName := f.Handler.AppName
+		if f.Handler.AppName == "" {
+			appName = cfg.VcapApplication.ApplicationName
+		}
 
-		eh := handlers.NewHTTPEvent(f.Handler.Command, relayer, pool, log)
+		eh := handlers.NewHTTPEvent(f.Handler.Command, appName, relayer, pool, log)
 		for _, e := range f.HTTPEvents {
 			r.Handle(e.Path, eh).Methods(e.Method)
 		}

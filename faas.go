@@ -2,15 +2,14 @@ package faas
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"time"
+
+	"github.com/bradylove/envstruct"
 )
 
 type Request struct {
@@ -36,30 +35,20 @@ func (f HandlerFunc) Handle(r Request) (Response, error) {
 }
 
 func Start(h Handler) {
-	fmt.Println("!!!!!!!!!!!! START")
 	log := log.New(os.Stderr, "[FAAS]", log.LstdFlags)
 	cfg := loadConfig(log)
 
-	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: cfg.SkipSSLValadation,
-			},
-		},
-	}
-
-	request := getRequest(cfg, httpClient, log)
+	request := getRequest(cfg, http.DefaultClient, log)
 	resp, err := h.Handle(request)
 	if err != nil {
 		log.Printf("handler error: %s", err)
 		postResponse(Response{
 			StatusCode: http.StatusInternalServerError,
-		}, cfg, httpClient, log)
+		}, cfg, http.DefaultClient, log)
 		return
 	}
 
-	postResponse(resp, cfg, httpClient, log)
+	postResponse(resp, cfg, http.DefaultClient, log)
 }
 
 func getRequest(cfg config, httpClient *http.Client, log *log.Logger) Request {
@@ -67,8 +56,7 @@ func getRequest(cfg config, httpClient *http.Client, log *log.Logger) Request {
 	if err != nil {
 		log.Fatalf("failed to build request with CF_FAAS_RELAY_ADDR: %s", err)
 	}
-	req.Header.Set("Authorization", cfg.Authorization)
-	req.Header.Set("X-CF-APP-INSTANCE", cfg.CFAppInstance)
+	req.Header.Set("X-CF-APP-INSTANCE", cfg.AppInstance)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Fatalf("failed to GET request: %s", err)
@@ -104,8 +92,7 @@ func postResponse(response Response, cfg config, httpClient *http.Client, log *l
 	if err != nil {
 		log.Fatalf("failed to build request with CF_FAAS_RELAY_ADDR: %s", err)
 	}
-	req.Header.Set("Authorization", cfg.Authorization)
-	req.Header.Set("X-CF-APP-INSTANCE", cfg.CFAppInstance)
+	req.Header.Set("X-CF-APP-INSTANCE", cfg.AppInstance)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Fatalf("failed to POST response: %s", err)
@@ -126,30 +113,16 @@ func postResponse(response Response, cfg config, httpClient *http.Client, log *l
 }
 
 type config struct {
-	RelayAddr         string
-	SkipSSLValadation bool
-	Authorization     string
-	CFAppInstance     string
+	RelayAddr string `env:"CF_FAAS_RELAY_ADDR, required"`
+
+	AppInstance string `env:"X_CF_APP_INSTANCE, requried"`
 }
 
 func loadConfig(log *log.Logger) config {
-	cfg := config{
-		RelayAddr:         os.Getenv("CF_FAAS_RELAY_ADDR"),
-		SkipSSLValadation: os.Getenv("SKIP_SSL_VALIDATION") == "true",
-		Authorization:     os.Getenv("CF_AUTH_TOKEN"),
-		CFAppInstance:     os.Getenv("X_CF_APP_INSTANCE"),
-	}
+	cfg := config{}
 
-	if cfg.RelayAddr == "" {
-		log.Fatalf("CF_FAAS_RELAY_ADDR is empty")
-	}
-
-	if cfg.Authorization == "" {
-		log.Fatalf("CF_AUTH_TOKEN is empty")
-	}
-
-	if cfg.CFAppInstance == "" {
-		log.Fatalf("X_CF_APP_INSTANCE is empty")
+	if err := envstruct.Load(&cfg); err != nil {
+		log.Fatal(err)
 	}
 
 	return cfg

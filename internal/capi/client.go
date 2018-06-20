@@ -140,23 +140,18 @@ func (c *Client) GetDropletGuid(ctx context.Context, appGuid string) (string, er
 	return result.Guid, nil
 }
 
-func (c *Client) CreateTask(ctx context.Context, command, appGuid, dropletGuid string) error {
-	if appGuid == "" {
-		appGuid = c.appGuid
-	}
-
+func (c *Client) CreateTask(ctx context.Context, command string) error {
 	u, err := url.Parse(c.addr)
 	if err != nil {
 		return err
 	}
-	u.Path = fmt.Sprintf("/v3/apps/%s/tasks", appGuid)
+	u.Path = fmt.Sprintf("/v3/apps/%s/tasks", c.appGuid)
 
 	marshalled, err := json.Marshal(struct {
 		Command     string `json:"command"`
 		DropletGuid string `json:"droplet_guid,omitempty"`
 	}{
-		Command:     command,
-		DropletGuid: dropletGuid,
+		Command: command,
 	})
 	if err != nil {
 		return err
@@ -303,4 +298,115 @@ func (c *Client) ListTasks(appGuid string) ([]string, error) {
 		return names, nil
 	}
 
+}
+
+func (c *Client) GetPackageGuid(ctx context.Context, appGuid string) (guid, downloadAddr string, err error) {
+	u, err := url.Parse(fmt.Sprintf("%s/v3/apps/%s/droplets/current", c.addr, appGuid))
+	if err != nil {
+		return "", "", err
+	}
+
+	req := &http.Request{
+		URL:    u,
+		Method: "GET",
+		Header: http.Header{
+			"Accept": []string{"application/json"},
+		},
+	}
+	req = req.WithContext(ctx)
+
+	resp, err := c.doer.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+
+	defer func(resp *http.Response) {
+		// Fail safe to ensure the clients are being cleaned up
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", "", err
+		}
+
+		return "", "", fmt.Errorf("unexpected response %d: %s", resp.StatusCode, data)
+	}
+
+	var result struct {
+		Links struct {
+			Package struct {
+				Href string `json:"href"`
+			} `json:"package"`
+		} `json:"links"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", err
+	}
+
+	if result.Links.Package.Href == "" {
+		return "", "", errors.New("empty results")
+	}
+
+	// Replace HTTPS with HTTP so the HTTP_PROXY can do the work for us
+	result.Links.Package.Href = strings.Replace(result.Links.Package.Href, "https", "http", 1)
+
+	u, err = url.Parse(result.Links.Package.Href)
+	if err != nil {
+		return "", "", err
+	}
+
+	req = &http.Request{
+		URL:    u,
+		Method: "GET",
+		Header: http.Header{
+			"Accept": []string{"application/json"},
+		},
+	}
+	req = req.WithContext(ctx)
+
+	resp, err = c.doer.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+
+	defer func(resp *http.Response) {
+		// Fail safe to ensure the clients are being cleaned up
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", "", err
+		}
+
+		return "", "", fmt.Errorf("unexpected response %d: %s", resp.StatusCode, data)
+	}
+
+	var gresult struct {
+		Guid  string `json:"guid"`
+		Links struct {
+			Download struct {
+				Href string `json:"href"`
+			} `json:"download"`
+		} `json:"links"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&gresult); err != nil {
+		return "", "", err
+	}
+
+	if gresult.Guid == "" || gresult.Links.Download.Href == "" {
+		return "", "", errors.New("empty results")
+	}
+
+	// Replace HTTPS with HTTP so the HTTP_PROXY can do the work for us
+	dl := strings.Replace(gresult.Links.Download.Href, "https", "http", 1)
+
+	return gresult.Guid, dl, nil
 }

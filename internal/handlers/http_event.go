@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/apoydence/cf-faas"
+	"github.com/apoydence/cf-faas/internal/internalapi"
 )
 
 type HTTPEvent struct {
@@ -19,6 +20,7 @@ type HTTPEvent struct {
 	s   WorkSubmitter
 
 	command string
+	appName string
 }
 
 type Relayer interface {
@@ -26,11 +28,12 @@ type Relayer interface {
 }
 
 type WorkSubmitter interface {
-	SubmitWork(ctx context.Context, u *url.URL)
+	SubmitWork(ctx context.Context, w internalapi.Work)
 }
 
 func NewHTTPEvent(
 	command string,
+	appName string,
 	r Relayer,
 	s WorkSubmitter,
 	log *log.Logger,
@@ -40,6 +43,7 @@ func NewHTTPEvent(
 		r:       r,
 		s:       s,
 		command: command,
+		appName: appName,
 	}
 }
 
@@ -55,7 +59,11 @@ func (e HTTPEvent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	e.s.SubmitWork(ctx, u)
+	e.s.SubmitWork(ctx, internalapi.Work{
+		Href:    u.String(),
+		Command: e.command,
+		AppName: e.appName,
+	})
 
 	// blocks until the request has been fulfilled.
 	resp, err := f()

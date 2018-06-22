@@ -16,6 +16,10 @@ import (
 	"github.com/bluele/gcache"
 )
 
+type Doer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type PackageManager struct {
 	c PackageClient
 	d Doer

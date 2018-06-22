@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -245,4 +247,50 @@ func createZip() []byte {
 	}
 
 	return buf.Bytes()
+}
+
+type spyDoer struct {
+	mu   sync.Mutex
+	m    map[string]*http.Response
+	req  *http.Request
+	body []byte
+
+	err error
+}
+
+func newSpyDoer() *spyDoer {
+	return &spyDoer{
+		m: make(map[string]*http.Response),
+	}
+}
+
+func (s *spyDoer) Do(req *http.Request) (*http.Response, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.req = req
+
+	if req.Body != nil {
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			panic(err)
+		}
+		s.body = body
+	}
+
+	r, ok := s.m[fmt.Sprintf("%s:%s", req.Method, req.URL.String())]
+	if !ok {
+		return &http.Response{
+			StatusCode: 202,
+			Body:       ioutil.NopCloser(strings.NewReader(`{"state":"SUCCEEDED"}`)),
+		}, s.err
+	}
+
+	return r, s.err
+}
+
+func (s *spyDoer) Req() *http.Request {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.req
 }

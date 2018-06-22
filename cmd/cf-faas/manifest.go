@@ -19,6 +19,9 @@ type Function struct {
 type Handler struct {
 	Command string `yaml:"command"`
 	AppName string `yaml:"app_name"`
+	Cache   struct {
+		Headers []string `yaml:"headers"`
+	} `yaml:"cache"`
 }
 
 type HTTPEvent struct {

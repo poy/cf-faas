@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"math/rand"
@@ -10,8 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/capi"
 	"github.com/apoydence/cf-faas/internal/handlers"
+	cfgroupcache "github.com/apoydence/cf-groupcache"
+	gocapi "github.com/apoydence/go-capi"
+	"github.com/golang/groupcache"
 	"github.com/gorilla/mux"
 )
 
@@ -56,13 +60,41 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 	relayer := handlers.NewRequestRelayer(u.String(), fmt.Sprintf("%s/relayer", internalID), log)
 	r.Handle(fmt.Sprintf("/%s/relayer/{id}", internalID), relayer).Methods(http.MethodGet, http.MethodPost)
 
-	capiClient := capi.NewClient(
+	capiClient := gocapi.NewClient(
 		cfg.VcapApplication.CAPIAddr,
 		cfg.VcapApplication.ApplicationID,
 		cfg.VcapApplication.SpaceID,
 		time.Second,
 		http.DefaultClient,
 	)
+
+	route := "http://" + cfg.VcapApplication.ApplicationURIs[0]
+	gcOpts := groupcache.HTTPPoolOptions{
+		// Some random thing that won't be a viable path
+		BasePath: "/_group_cache_32723262323249873240/",
+	}
+	gcPool := cfgroupcache.NewHTTPPoolOpts(route, cfg.VcapApplication.ApplicationID, &gcOpts)
+	r.Handle("/_group_cache_32723262323249873240/{name}/{key}", gcPool)
+
+	peerManager := cfgroupcache.NewPeerManager(
+		route,
+		cfg.VcapApplication.ApplicationID,
+		gcPool,
+		capiClient,
+		log,
+	)
+
+	updatePeers := func() {
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		peerManager.Tick(ctx)
+	}
+	updatePeers()
+
+	go func() {
+		for range time.Tick(15 * time.Second) {
+			updatePeers()
+		}
+	}()
 
 	var appNames []string
 	ma := map[string]bool{}
@@ -99,7 +131,8 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 
 		eh := handlers.NewHTTPEvent(f.Handler.Command, appName, relayer, pool, log)
 		for _, e := range f.HTTPEvents {
-			r.Handle(e.Path, eh).Methods(e.Method)
+			ceh := handlers.NewCache(base64.URLEncoding.EncodeToString([]byte(e.Path)), f.Handler.Cache.Headers, eh, log)
+			r.Handle(e.Path, ceh).Methods(e.Method)
 		}
 	}
 

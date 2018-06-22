@@ -11,6 +11,7 @@ import (
 
 	"github.com/apoydence/cf-faas/internal/capi"
 	"github.com/apoydence/cf-faas/internal/scheduler"
+	gocapi "github.com/apoydence/go-capi"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 
 	cfg := LoadConfig(log)
 
-	capiClient := capi.NewClient(
+	capiClient := gocapi.NewClient(
 		cfg.VcapApplication.CAPIAddr,
 		cfg.VcapApplication.ApplicationID,
 		cfg.VcapApplication.SpaceID,

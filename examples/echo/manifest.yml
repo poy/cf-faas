@@ -1,9 +1,0 @@
----
-
-functions:
-  echo:
-    handler:
-      command: echo "hi"
-    http_events:
-      - path: /v1/echo
-        method: GET

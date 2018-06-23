@@ -56,11 +56,6 @@ func TestWorkerPool(t *testing.T) {
 	})
 
 	o.Spec("adheres to the request context", func(t TP) {
-		go t.p.SubmitWork(context.Background(), internalapi.Work{
-			Href:    "http://some.url",
-			Command: "some-command",
-			AppName: "some-app",
-		})
 		req, err := http.NewRequest("GET", "http://some.url", nil)
 		Expect(t, err).To(BeNil())
 		ctx, cancel := context.WithCancel(context.Background())

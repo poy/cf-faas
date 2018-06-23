@@ -36,6 +36,7 @@ func TestCache(t *testing.T) {
 				fmt.Sprintf("some-name-%d", time.Now().UnixNano()),
 				[]string{"a", "c", "e", "g"},
 				spyHTTPHandler,
+				time.Second,
 				log.New(ioutil.Discard, "", 0),
 			),
 			recorder: httptest.NewRecorder(),
@@ -78,12 +79,36 @@ func TestCache(t *testing.T) {
 		Expect(t, t.recorder.Body.String()).To(Equal("called 1"))
 	})
 
+	// This invalidates data over time. Its a way to expire data in
+	// groupcache.
+	o.Spec("it marks keys with truncated time", func(t TC) {
+		t.c = handlers.NewCache(
+			fmt.Sprintf("some-name-%d", time.Now().UnixNano()),
+			[]string{"a", "c", "e", "g"},
+			t.spyHTTPHandler,
+			time.Nanosecond,
+			log.New(ioutil.Discard, "", 0),
+		)
+
+		req, err := http.NewRequest(http.MethodGet, "http://some.url", nil)
+		Expect(t, err).To(BeNil())
+		t.c.ServeHTTP(t.recorder, req)
+
+		t.recorder = httptest.NewRecorder()
+		t.c.ServeHTTP(t.recorder, req)
+
+		Expect(t, t.spyHTTPHandler.called).To(Equal(2))
+	})
+
 	o.Spec("it does not cache non-GET requests", func(t TC) {
 		req, err := http.NewRequest(http.MethodPut, "http://some.url", nil)
 		Expect(t, err).To(BeNil())
 		t.c.ServeHTTP(t.recorder, req)
 
-		Expect(t, t.spyHTTPHandler.r).To(Equal(req))
+		t.recorder = httptest.NewRecorder()
+		t.c.ServeHTTP(t.recorder, req)
+
+		Expect(t, t.spyHTTPHandler.called).To(Equal(2))
 	})
 }
 

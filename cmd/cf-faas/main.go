@@ -131,8 +131,19 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 
 		eh := handlers.NewHTTPEvent(f.Handler.Command, appName, relayer, pool, log)
 		for _, e := range f.HTTPEvents {
-			ceh := handlers.NewCache(base64.URLEncoding.EncodeToString([]byte(e.Path)), f.Handler.Cache.Headers, eh, log)
-			r.Handle(e.Path, ceh).Methods(e.Method)
+			if f.Handler.Cache.Duration > 0 {
+				ceh := handlers.NewCache(
+					base64.URLEncoding.EncodeToString([]byte(e.Path)),
+					f.Handler.Cache.Headers,
+					eh,
+					f.Handler.Cache.Duration,
+					log,
+				)
+				r.Handle(e.Path, ceh).Methods(e.Method)
+				continue
+			}
+
+			r.Handle(e.Path, eh).Methods(e.Method)
 		}
 	}
 

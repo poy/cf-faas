@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"sort"
 	"strings"
+	"time"
 
 	faas "github.com/apoydence/cf-faas"
 	"github.com/golang/groupcache"
@@ -18,11 +19,12 @@ import (
 type Cache struct {
 	h       http.Handler
 	g       *groupcache.Group
+	d       time.Duration
 	headers map[string]bool
 	log     *log.Logger
 }
 
-func NewCache(name string, headers []string, h http.Handler, log *log.Logger) *Cache {
+func NewCache(name string, headers []string, h http.Handler, d time.Duration, log *log.Logger) *Cache {
 	headersM := make(map[string]bool, len(headers))
 	for _, header := range headers {
 		headersM[strings.ToLower(header)] = true
@@ -30,6 +32,7 @@ func NewCache(name string, headers []string, h http.Handler, log *log.Logger) *C
 
 	c := &Cache{
 		h:       h,
+		d:       d,
 		headers: headersM,
 		log:     log,
 	}
@@ -63,6 +66,7 @@ func (c *Cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Path:   r.URL.String(),
 		},
 		Headers: headers,
+		TimeKey: time.Now().Truncate(c.d).UnixNano(),
 	}
 
 	data, err := json.Marshal(req)
@@ -129,4 +133,5 @@ func (c *Cache) get(ctx groupcache.Context, key string, dest groupcache.Sink) er
 type request struct {
 	faas.Request
 	Headers []string `json:"headers"`
+	TimeKey int64    `json:"time_key"`
 }

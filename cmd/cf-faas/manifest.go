@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -20,7 +21,8 @@ type Handler struct {
 	Command string `yaml:"command"`
 	AppName string `yaml:"app_name"`
 	Cache   struct {
-		Headers []string `yaml:"headers"`
+		Duration time.Duration `yaml:"duration"`
+		Headers  []string      `yaml:"headers"`
 	} `yaml:"cache"`
 }
 

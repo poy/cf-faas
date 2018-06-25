@@ -79,7 +79,11 @@ func TestHTTPEvent(t *testing.T) {
 	o.Spec("it should return the faas.Response", func(t TE) {
 		t.spyRelayer.resp = faas.Response{
 			StatusCode: 234,
-			Body:       []byte("some-data"),
+			Header: http.Header{
+				"A": []string{"x", "y"},
+				"B": []string{"z"},
+			},
+			Body: []byte("some-data"),
 		}
 
 		req, err := http.NewRequest("GET", "http://some.url", nil)
@@ -87,6 +91,7 @@ func TestHTTPEvent(t *testing.T) {
 
 		t.h.ServeHTTP(t.recorder, req)
 		Expect(t, t.recorder.Code).To(Equal(234))
+		Expect(t, t.recorder.Header()).To(Equal(t.spyRelayer.resp.Header))
 		Expect(t, t.recorder.Body.String()).To(Equal("some-data"))
 	})
 

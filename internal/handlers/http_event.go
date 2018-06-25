@@ -73,6 +73,10 @@ func (e HTTPEvent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for k, v := range resp.Header {
+		w.Header()[k] = v
+	}
+
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, bytes.NewReader(resp.Body))
 }

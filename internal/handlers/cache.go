@@ -87,6 +87,10 @@ func (c *Cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for k, v := range resp.Header {
+		w.Header()[k] = v
+	}
+
 	w.WriteHeader(resp.StatusCode)
 	w.Write(resp.Body)
 }
@@ -117,6 +121,7 @@ func (c *Cache) get(ctx groupcache.Context, key string, dest groupcache.Sink) er
 
 	resp := faas.Response{
 		StatusCode: recorder.Code,
+		Header:     recorder.Header(),
 		Body:       recorder.Body.Bytes(),
 	}
 

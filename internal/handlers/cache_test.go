@@ -62,6 +62,7 @@ func TestCache(t *testing.T) {
 		Expect(t, t.spyHTTPHandler.r.Header.Get("g")).To(Equal("h"))
 
 		Expect(t, t.recorder.Code).To(Equal(234))
+		Expect(t, t.recorder.Header()["expected-header"]).To(Equal([]string{"something"}))
 		Expect(t, t.recorder.Body.String()).To(Equal("called 1"))
 
 		t.recorder = httptest.NewRecorder()
@@ -76,6 +77,7 @@ func TestCache(t *testing.T) {
 
 		Expect(t, t.spyHTTPHandler.called).To(Equal(1))
 		Expect(t, t.recorder.Code).To(Equal(234))
+		Expect(t, t.recorder.Header()["expected-header"]).To(Equal([]string{"something"}))
 		Expect(t, t.recorder.Body.String()).To(Equal("called 1"))
 	})
 
@@ -122,8 +124,9 @@ func newSpyHTTPHandler() *spyHTTPHandler {
 }
 
 func (s *spyHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(234)
 	s.called++
+	w.Header()["expected-header"] = []string{"something"}
+	w.WriteHeader(234)
 	w.Write([]byte(fmt.Sprintf("called %d", s.called)))
 	s.r = r
 }

@@ -20,8 +20,9 @@ type Request struct {
 }
 
 type Response struct {
-	StatusCode int    `json:"status_code"`
-	Body       []byte `json:"body"`
+	StatusCode int         `json:"status_code"`
+	Header     http.Header `json:"header"`
+	Body       []byte      `json:"body"`
 }
 
 type Handler interface {

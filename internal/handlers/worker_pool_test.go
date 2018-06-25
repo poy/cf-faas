@@ -12,6 +12,7 @@ import (
 
 	"github.com/apoydence/cf-faas/internal/handlers"
 	"github.com/apoydence/cf-faas/internal/internalapi"
+	gocapi "github.com/apoydence/go-capi"
 	"github.com/apoydence/onpar"
 	. "github.com/apoydence/onpar/expect"
 	. "github.com/apoydence/onpar/matchers"
@@ -108,13 +109,13 @@ func newSpyTaskCreator() *spyTaskCreator {
 	return &spyTaskCreator{}
 }
 
-func (s *spyTaskCreator) CreateTask(ctx context.Context, command string) error {
+func (s *spyTaskCreator) RunTask(ctx context.Context, command, name, dropletGuid, appName string) (gocapi.Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.called++
 	s.ctx = ctx
 	s.command = command
-	return s.err
+	return gocapi.Task{}, s.err
 }
 
 func (s *spyTaskCreator) Command() string {

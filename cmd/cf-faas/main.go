@@ -64,7 +64,6 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 		cfg.VcapApplication.CAPIAddr,
 		cfg.VcapApplication.ApplicationID,
 		cfg.VcapApplication.SpaceID,
-		time.Second,
 		http.DefaultClient,
 	)
 

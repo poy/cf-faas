@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/apoydence/cf-faas/internal/internalapi"
+	gocapi "github.com/apoydence/go-capi"
 )
 
 type WorkerPool struct {
@@ -32,7 +33,7 @@ type work struct {
 }
 
 type TaskCreator interface {
-	CreateTask(ctx context.Context, command string) error
+	RunTask(ctx context.Context, command, name, dropletGuid, appGuid string) (gocapi.Task, error)
 }
 
 func NewWorkerPool(
@@ -97,7 +98,9 @@ func (p *WorkerPool) SubmitWork(ctx context.Context, w internalapi.Work) {
 		case <-timer.C:
 			if p.tryAddToThreshold() {
 				go func() {
-					if err := p.c.CreateTask(context.Background(), p.buildCommand()); err != nil {
+					// Leave out name, droplet and app name. Their defaults
+					// are good enough.
+					if _, err := p.c.RunTask(context.Background(), p.buildCommand(), "", "", ""); err != nil {
 						log.Printf("creating a task failed: %s", err)
 					}
 				}()

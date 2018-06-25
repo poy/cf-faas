@@ -25,7 +25,6 @@ func main() {
 		cfg.VcapApplication.CAPIAddr,
 		cfg.VcapApplication.ApplicationID,
 		cfg.VcapApplication.SpaceID,
-		time.Second,
 		http.DefaultClient,
 	)
 

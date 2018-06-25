@@ -58,6 +58,7 @@ func main() {
 		map[string]string{
 			"HTTP_PROXY":        cfg.HTTPProxy,
 			"X_CF_APP_INSTANCE": cfg.AppInstance,
+			"VCAP_APPLICATION":  os.Getenv("VCAP_APPLICATION"),
 		},
 		log,
 	)

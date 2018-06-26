@@ -13,10 +13,10 @@ import (
 )
 
 type Request struct {
-	Path    string      `json:"path"`
-	Method  string      `json:"method"`
-	Headers http.Header `json:"headers"`
-	Body    []byte      `json:"body"`
+	Path   string      `json:"path"`
+	Method string      `json:"method"`
+	Header http.Header `json:"headers"`
+	Body   []byte      `json:"body"`
 }
 
 type Response struct {

@@ -59,10 +59,10 @@ func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (faas.Respon
 		req    *faas.Request
 	}{
 		req: &faas.Request{
-			Path:    req.URL.Path,
-			Method:  req.Method,
-			Body:    body,
-			Headers: req.Header,
+			Path:   req.URL.Path,
+			Method: req.Method,
+			Body:   body,
+			Header: req.Header,
 		},
 		writer: wc,
 		errs:   we,

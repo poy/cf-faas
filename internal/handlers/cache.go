@@ -65,7 +65,7 @@ func (c *Cache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Method: r.Method,
 			Path:   r.URL.String(),
 		},
-		Headers: headers,
+		Header:  headers,
 		TimeKey: time.Now().Truncate(c.d).UnixNano(),
 	}
 
@@ -111,7 +111,7 @@ func (c *Cache) get(ctx groupcache.Context, key string, dest groupcache.Sink) er
 		return err
 	}
 
-	for _, h := range r.Headers {
+	for _, h := range r.Header {
 		splitUp := strings.SplitN(h, ":", 2)
 		req.Header.Add(splitUp[0], splitUp[1])
 	}
@@ -137,6 +137,6 @@ func (c *Cache) get(ctx groupcache.Context, key string, dest groupcache.Sink) er
 
 type request struct {
 	faas.Request
-	Headers []string `json:"headers"`
+	Header  []string `json:"headers"`
 	TimeKey int64    `json:"time_key"`
 }

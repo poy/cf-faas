@@ -133,7 +133,7 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 			if f.Handler.Cache.Duration > 0 {
 				ceh := handlers.NewCache(
 					base64.URLEncoding.EncodeToString([]byte(e.Path)),
-					f.Handler.Cache.Headers,
+					f.Handler.Cache.Header,
 					eh,
 					f.Handler.Cache.Duration,
 					log,

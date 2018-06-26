@@ -22,7 +22,7 @@ type Handler struct {
 	AppName string `yaml:"app_name"`
 	Cache   struct {
 		Duration time.Duration `yaml:"duration"`
-		Headers  []string      `yaml:"headers"`
+		Header   []string      `yaml:"header"`
 	} `yaml:"cache"`
 }
 

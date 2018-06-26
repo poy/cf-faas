@@ -1,8 +1,8 @@
 package main
 
 import (
-	"log"
-	"os"
+	"errors"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -31,40 +31,34 @@ type HTTPEvent struct {
 	Method string `yaml:"method"`
 }
 
-func LoadManifest(path string, log *log.Logger) Manifest {
-	f, err := os.Open(path)
-	if err != nil {
-		log.Fatalf("failed to open %s: %s", path, err)
-	}
-
-	var m Manifest
-	if err := yaml.NewDecoder(f).Decode(&m); err != nil {
-		log.Fatalf("failed to unmarshal manifest: %s", err)
+func (m *Manifest) UnmarshalEnv(data string) error {
+	if err := yaml.NewDecoder(strings.NewReader(data)).Decode(m); err != nil {
+		return err
 	}
 
 	if len(m.Functions) == 0 {
-		log.Fatalf("no functions defined")
+		errors.New("no functions defined")
 	}
 
 	for _, f := range m.Functions {
 		if f.Handler.Command == "" {
-			log.Fatal("invalid empty command")
+			errors.New("invalid empty command")
 		}
 
 		if len(f.HTTPEvents) == 0 {
-			log.Fatal("invalid empty http_events")
+			errors.New("invalid empty http_events")
 		}
 
 		for _, e := range f.HTTPEvents {
 			if e.Path == "" {
-				log.Fatal("invalid empty path")
+				errors.New("invalid empty path")
 			}
 
 			if e.Method == "" {
-				log.Fatal("invalid empty method")
+				errors.New("invalid empty method")
 			}
 		}
 	}
 
-	return m
+	return nil
 }

@@ -13,8 +13,8 @@ type Config struct {
 	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
 	TokenPort  int `env:"TOKEN_PORT, required, report"`
 
-	Manifest      string `env:"MANIFEST_PATH, required, report"`
-	InstanceIndex int    `env:"CF_INSTANCE_INDEX, required, report"`
+	Manifest      Manifest `env:"MANIFEST, required"`
+	InstanceIndex int      `env:"CF_INSTANCE_INDEX, required, report"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
 

@@ -26,8 +26,6 @@ func main() {
 
 	cfg := LoadConfig(log)
 
-	manifest := LoadManifest(cfg.Manifest, log)
-
 	// Setup health endpoint
 	go func() {
 		log.Fatal(
@@ -41,12 +39,12 @@ func main() {
 	log.Fatal(
 		http.ListenAndServe(
 			fmt.Sprintf(":%d", cfg.Port),
-			setupRouting(cfg, manifest, log),
+			setupRouting(cfg, log),
 		),
 	)
 }
 
-func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
+func setupRouting(cfg Config, log *log.Logger) http.Handler {
 	internalID := fmt.Sprintf("%d%d", rand.Int63(), time.Now().UnixNano())
 
 	r := mux.NewRouter()
@@ -97,7 +95,7 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 
 	var appNames []string
 	ma := map[string]bool{}
-	for _, f := range manifest.Functions {
+	for _, f := range cfg.Manifest.Functions {
 		if f.Handler.AppName == "" {
 			f.Handler.AppName = cfg.VcapApplication.ApplicationName
 		}
@@ -122,7 +120,7 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 	)
 	r.Handle(poolPath, pool).Methods(http.MethodGet)
 
-	for _, f := range manifest.Functions {
+	for _, f := range cfg.Manifest.Functions {
 		appName := f.Handler.AppName
 		if f.Handler.AppName == "" {
 			appName = cfg.VcapApplication.ApplicationName

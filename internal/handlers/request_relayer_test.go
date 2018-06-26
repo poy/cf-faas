@@ -18,6 +18,7 @@ import (
 	"github.com/apoydence/onpar"
 	. "github.com/apoydence/onpar/expect"
 	. "github.com/apoydence/onpar/matchers"
+	"github.com/gorilla/mux"
 )
 
 type TR struct {
@@ -43,32 +44,46 @@ func TestRequestRelayer(t *testing.T) {
 		expectedData := make([]byte, 10*1024)
 		rand.Read(expectedData)
 
-		req, err := http.NewRequest("PUT", "http://some.url/v1/some-path", bytes.NewReader(expectedData))
+		req, err := http.NewRequest("PUT", "http://some.url/v1/some-var-1/some-var-2", bytes.NewReader(expectedData))
 		Expect(t, err).To(BeNil())
 		req.Header.Add("A", "a")
 		req.Header.Add("A", "aa")
 		req.Header.Add("B", "b")
 
-		addr, _, err := t.r.Relay(req)
-		Expect(t, err).To(BeNil())
-		Expect(t, strings.HasPrefix(addr.Path, "/some-prefix")).To(BeTrue())
+		var called bool
+		defer func() {
+			Expect(t, called).To(BeTrue())
+		}()
 
-		req, err = http.NewRequest("GET", addr.String(), bytes.NewReader(nil))
-		Expect(t, err).To(BeNil())
-		req.Header.Set("X-Forwarded-Proto", "https")
+		r := mux.NewRouter()
+		r.HandleFunc("/v1/{var-1}/{var-2}", func(_ http.ResponseWriter, req *http.Request) {
+			called = true
+			addr, _, err := t.r.Relay(req)
+			Expect(t, err).To(BeNil())
+			Expect(t, strings.HasPrefix(addr.Path, "/some-prefix")).To(BeTrue())
 
-		t.r.ServeHTTP(t.recorder, req)
-		Expect(t, t.recorder.Code).To(Equal(http.StatusOK))
+			req, err = http.NewRequest("GET", addr.String(), bytes.NewReader(nil))
+			Expect(t, err).To(BeNil())
+			req.Header.Set("X-Forwarded-Proto", "https")
 
-		var m map[string]interface{}
-		Expect(t, json.Unmarshal(t.recorder.Body.Bytes(), &m)).To(BeNil())
-		Expect(t, m["body"]).To(Equal(base64.StdEncoding.EncodeToString(expectedData)))
-		Expect(t, m["method"]).To(Equal(http.MethodPut))
-		Expect(t, m["path"]).To(Equal("/v1/some-path"))
-		Expect(t, m["headers"]).To(Equal(map[string]interface{}{
-			"A": []interface{}{"a", "aa"},
-			"B": []interface{}{"b"},
-		}))
+			t.r.ServeHTTP(t.recorder, req)
+			Expect(t, t.recorder.Code).To(Equal(http.StatusOK))
+
+			var m map[string]interface{}
+			Expect(t, json.Unmarshal(t.recorder.Body.Bytes(), &m)).To(BeNil())
+			Expect(t, m["body"]).To(Equal(base64.StdEncoding.EncodeToString(expectedData)))
+			Expect(t, m["method"]).To(Equal(http.MethodPut))
+			Expect(t, m["path"]).To(Equal("/v1/some-var-1/some-var-2"))
+			Expect(t, m["headers"]).To(Equal(map[string]interface{}{
+				"A": []interface{}{"a", "aa"},
+				"B": []interface{}{"b"},
+			}))
+			Expect(t, m["url_variables"]).To(Equal(map[string]interface{}{
+				"var-1": "some-var-1",
+				"var-2": "some-var-2",
+			}))
+		})
+		r.ServeHTTP(httptest.NewRecorder(), req)
 	})
 
 	o.Spec("it writes response back to ResponseWriter on POST", func(t TR) {

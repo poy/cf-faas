@@ -13,10 +13,11 @@ import (
 )
 
 type Request struct {
-	Path   string      `json:"path"`
-	Method string      `json:"method"`
-	Header http.Header `json:"headers"`
-	Body   []byte      `json:"body"`
+	Path         string            `json:"path"`
+	URLVariables map[string]string `json:"url_variables"`
+	Method       string            `json:"method"`
+	Header       http.Header       `json:"headers"`
+	Body         []byte            `json:"body"`
 }
 
 type Response struct {

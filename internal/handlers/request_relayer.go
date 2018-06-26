@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/apoydence/cf-faas"
+	"github.com/gorilla/mux"
 )
 
 type RequestRelayer struct {
@@ -59,10 +60,11 @@ func (r *RequestRelayer) Relay(req *http.Request) (*url.URL, func() (faas.Respon
 		req    *faas.Request
 	}{
 		req: &faas.Request{
-			Path:   req.URL.Path,
-			Method: req.Method,
-			Body:   body,
-			Header: req.Header,
+			Path:         req.URL.Path,
+			Method:       req.Method,
+			Body:         body,
+			Header:       req.Header,
+			URLVariables: mux.Vars(req),
 		},
 		writer: wc,
 		errs:   we,

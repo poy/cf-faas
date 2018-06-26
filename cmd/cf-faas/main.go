@@ -128,7 +128,14 @@ func setupRouting(cfg Config, manifest Manifest, log *log.Logger) http.Handler {
 			appName = cfg.VcapApplication.ApplicationName
 		}
 
-		eh := handlers.NewHTTPEvent(f.Handler.Command, appName, relayer, pool, log)
+		eh := handlers.NewHTTPEvent(
+			f.Handler.Command,
+			appName,
+			relayer,
+			pool,
+			log,
+		)
+
 		for _, e := range f.HTTPEvents {
 			if f.Handler.Cache.Duration > 0 {
 				ceh := handlers.NewCache(

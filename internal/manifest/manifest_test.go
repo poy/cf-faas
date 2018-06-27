@@ -9,7 +9,7 @@ import (
 	. "github.com/apoydence/onpar/matchers"
 )
 
-func TestUnmarshal(t *testing.T) {
+func TestManifestUnmarshal(t *testing.T) {
 	t.Parallel()
 	o := onpar.New()
 	defer o.Run(t)
@@ -99,5 +99,41 @@ functions:
     http_events:
     - path: /v1/goecho`)
 		Expect(t, err).To(Not(BeNil()))
+	})
+}
+
+func TestManiestAppNames(t *testing.T) {
+	t.Parallel()
+	o := onpar.New()
+	defer o.Run(t)
+
+	o.Spec("it lists every app name used", func(t *testing.T) {
+		m := manifest.Manifest{
+			Functions: map[string]manifest.Function{
+				"app-1": {
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+				},
+				"app-2": {
+					Handler: manifest.Handler{
+						AppName: "app-name-2",
+					},
+				},
+				"app-3": {
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+				},
+				"app-4": {
+					Handler: manifest.Handler{
+					// Use default
+					},
+				},
+			},
+		}
+
+		Expect(t, m.AppNames("default-name")).To(HaveLen(3))
+		Expect(t, m.AppNames("default-name")).To(Contain("app-name-1", "app-name-2", "default-name"))
 	})
 }

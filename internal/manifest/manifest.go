@@ -62,3 +62,21 @@ func (m *Manifest) UnmarshalEnv(data string) error {
 
 	return nil
 }
+
+func (m *Manifest) AppNames(defaultName string) []string {
+	var appNames []string
+	ma := map[string]bool{}
+	for _, f := range m.Functions {
+		if f.Handler.AppName == "" {
+			f.Handler.AppName = defaultName
+		}
+
+		if ma[f.Handler.AppName] {
+			continue
+		}
+
+		ma[f.Handler.AppName] = true
+		appNames = append(appNames, f.Handler.AppName)
+	}
+	return appNames
+}

@@ -43,18 +43,18 @@ func TestRouter(t *testing.T) {
 				{
 					Handler: manifest.Handler{
 						Command: "some-command",
-						Cache: struct {
-							Duration time.Duration `yaml:"duration"`
-							Header   []string      `yaml:"header"`
-						}{
-							Duration: time.Second,
-							Header:   []string{"A", "B"},
-						},
 					},
 					HTTPEvents: []manifest.HTTPEvent{
 						{
 							Path:   "/v1/some-path",
 							Method: "GET",
+							Cache: struct {
+								Duration time.Duration `yaml:"duration"`
+								Header   []string      `yaml:"header"`
+							}{
+								Duration: time.Second,
+								Header:   []string{"A", "B"},
+							},
 						},
 					},
 				},

@@ -20,15 +20,15 @@ type Function struct {
 type Handler struct {
 	Command string `yaml:"command"`
 	AppName string `yaml:"app_name"`
-	Cache   struct {
-		Duration time.Duration `yaml:"duration"`
-		Header   []string      `yaml:"header"`
-	} `yaml:"cache"`
 }
 
 type HTTPEvent struct {
 	Path   string `yaml:"path"`
 	Method string `yaml:"method"`
+	Cache  struct {
+		Duration time.Duration `yaml:"duration"`
+		Header   []string      `yaml:"header"`
+	} `yaml:"cache"`
 }
 
 func (m *Manifest) UnmarshalEnv(data string) error {

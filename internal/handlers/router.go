@@ -103,12 +103,12 @@ func (r *Router) buildFunctionHandlers(m *mux.Router, relayer *RequestRelayer, p
 		)
 
 		for _, e := range f.HTTPEvents {
-			if f.Handler.Cache.Duration > 0 {
+			if e.Cache.Duration > 0 {
 				ceh := r.newCache(
 					base64.URLEncoding.EncodeToString([]byte(e.Path)),
-					f.Handler.Cache.Header,
+					e.Cache.Header,
 					eh,
-					f.Handler.Cache.Duration,
+					e.Cache.Duration,
 					r.log,
 				)
 				m.Handle(e.Path, ceh).Methods(e.Method)

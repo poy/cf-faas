@@ -1,4 +1,4 @@
-package main
+package manifest
 
 import (
 	"errors"
@@ -32,30 +32,30 @@ type HTTPEvent struct {
 }
 
 func (m *Manifest) UnmarshalEnv(data string) error {
-	if err := yaml.NewDecoder(strings.NewReader(data)).Decode(m); err != nil {
+	if err := yaml.NewDecoder(strings.NewReader(data)).Decode(&m); err != nil {
 		return err
 	}
 
 	if len(m.Functions) == 0 {
-		errors.New("no functions defined")
+		return errors.New("no functions defined")
 	}
 
 	for _, f := range m.Functions {
 		if f.Handler.Command == "" {
-			errors.New("invalid empty command")
+			return errors.New("invalid empty command")
 		}
 
 		if len(f.HTTPEvents) == 0 {
-			errors.New("invalid empty http_events")
+			return errors.New("invalid empty http_events")
 		}
 
 		for _, e := range f.HTTPEvents {
 			if e.Path == "" {
-				errors.New("invalid empty path")
+				return errors.New("invalid empty path")
 			}
 
 			if e.Method == "" {
-				errors.New("invalid empty method")
+				return errors.New("invalid empty method")
 			}
 		}
 	}

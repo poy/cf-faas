@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/go-envstruct"
+	"github.com/apoydence/cf-faas/internal/manifest"
 )
 
 type Config struct {
@@ -13,8 +14,8 @@ type Config struct {
 	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
 	TokenPort  int `env:"TOKEN_PORT, required, report"`
 
-	Manifest      Manifest `env:"MANIFEST, required"`
-	InstanceIndex int      `env:"CF_INSTANCE_INDEX, required, report"`
+	Manifest      manifest.Manifest `env:"MANIFEST, required"`
+	InstanceIndex int               `env:"CF_INSTANCE_INDEX, required, report"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
 

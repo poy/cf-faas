@@ -39,8 +39,8 @@ func TestRouter(t *testing.T) {
 		stubConstructorCache := newStubConstructorCache()
 		groupcachePool := newSpyHandler()
 		m := manifest.Manifest{
-			Functions: map[string]manifest.Function{
-				"a": manifest.Function{
+			Functions: []manifest.Function{
+				{
 					Handler: manifest.Handler{
 						Command: "some-command",
 						Cache: struct {
@@ -50,6 +50,17 @@ func TestRouter(t *testing.T) {
 							Duration: time.Second,
 							Header:   []string{"A", "B"},
 						},
+					},
+					HTTPEvents: []manifest.HTTPEvent{
+						{
+							Path:   "/v1/some-path",
+							Method: "GET",
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						Command: "some-command",
 					},
 					HTTPEvents: []manifest.HTTPEvent{
 						{

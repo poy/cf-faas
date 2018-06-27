@@ -9,7 +9,7 @@ import (
 )
 
 type Manifest struct {
-	Functions map[string]Function `yaml:"functions"`
+	Functions []Function `yaml:"functions"`
 }
 
 type Function struct {

@@ -18,18 +18,17 @@ func TestManifestUnmarshal(t *testing.T) {
 		var m manifest.Manifest
 		err := m.UnmarshalEnv(`
 functions:
-  goecho:
-    handler:
-      app_name: faas-droplet-echo
-      command: ./echo
-    http_events:
-    - path: /v1/goecho
-      method: POST`)
+- handler:
+   app_name: faas-droplet-echo
+   command: ./echo
+  http_events:
+  - path: /v1/goecho
+    method: POST`)
 		Expect(t, err).To(BeNil())
 
 		Expect(t, m).To(Equal(manifest.Manifest{
-			Functions: map[string]manifest.Function{
-				"goecho": {
+			Functions: []manifest.Function{
+				{
 					Handler: manifest.Handler{
 						AppName: "faas-droplet-echo",
 						Command: "./echo",
@@ -55,12 +54,11 @@ functions:
 		var m manifest.Manifest
 		err := m.UnmarshalEnv(`
 functions:
-  goecho:
-    handler:
-      app_name: faas-droplet-echo
-    http_events:
-    - path: /v1/goecho
-      method: POST`)
+- handler:
+   app_name: faas-droplet-echo
+  http_events:
+  - path: /v1/goecho
+    method: POST`)
 		Expect(t, err).To(Not(BeNil()))
 	})
 
@@ -68,10 +66,9 @@ functions:
 		var m manifest.Manifest
 		err := m.UnmarshalEnv(`
 functions:
-  goecho:
-    handler:
-      app_name: faas-droplet-echo
-      command: ./echo`)
+- handler:
+   app_name: faas-droplet-echo
+   command: ./echo`)
 		Expect(t, err).To(Not(BeNil()))
 	})
 
@@ -79,12 +76,11 @@ functions:
 		var m manifest.Manifest
 		err := m.UnmarshalEnv(`
 functions:
-  goecho:
-    handler:
-      app_name: faas-droplet-echo
-      command: ./echo
-    http_events:
-    - method: POST`)
+- handler:
+   app_name: faas-droplet-echo
+   command: ./echo
+  http_events:
+  - method: POST`)
 		Expect(t, err).To(Not(BeNil()))
 	})
 
@@ -92,12 +88,11 @@ functions:
 		var m manifest.Manifest
 		err := m.UnmarshalEnv(`
 functions:
-  goecho:
-    handler:
-      app_name: faas-droplet-echo
-      command: ./echo
-    http_events:
-    - path: /v1/goecho`)
+- handler:
+   app_name: faas-droplet-echo
+   command: ./echo
+  http_events:
+  - path: /v1/goecho`)
 		Expect(t, err).To(Not(BeNil()))
 	})
 }
@@ -109,23 +104,23 @@ func TestManiestAppNames(t *testing.T) {
 
 	o.Spec("it lists every app name used", func(t *testing.T) {
 		m := manifest.Manifest{
-			Functions: map[string]manifest.Function{
-				"app-1": {
+			Functions: []manifest.Function{
+				{
 					Handler: manifest.Handler{
 						AppName: "app-name-1",
 					},
 				},
-				"app-2": {
+				{
 					Handler: manifest.Handler{
 						AppName: "app-name-2",
 					},
 				},
-				"app-3": {
+				{
 					Handler: manifest.Handler{
 						AppName: "app-name-1",
 					},
 				},
-				"app-4": {
+				{
 					Handler: manifest.Handler{
 					// Use default
 					},

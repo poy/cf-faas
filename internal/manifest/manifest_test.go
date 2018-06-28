@@ -14,34 +14,44 @@ func TestManifestUnmarshal(t *testing.T) {
 	o := onpar.New()
 	defer o.Run(t)
 
-	o.Spec("it returns an error if there is a function without a method", func(t *testing.T) {
+	o.Spec("it returns a manifest", func(t *testing.T) {
 		var m manifest.Manifest
 		err := m.UnmarshalEnv(`
 functions:
 - handler:
    app_name: faas-droplet-echo
    command: ./echo
-  http_events:
-  - path: /v1/goecho
-    method: POST`)
+  events:
+    http:
+    - path: /v1/goecho
+      method: POST
+      cache:
+        duration: 1m
+        sub-type:
+          sub-key: sub-value
+`)
 		Expect(t, err).To(BeNil())
 
-		Expect(t, m).To(Equal(manifest.Manifest{
-			Functions: []manifest.Function{
+		Expect(t, m.Functions).To(HaveLen(1))
+		Expect(t, m.Functions[0].Handler).To(Equal(manifest.Handler{
+			AppName: "faas-droplet-echo",
+			Command: "./echo",
+		}))
+		Expect(t, m.Functions[0].Events).To(HaveLen(1))
+		Expect(t, m.Functions[0].Events["http"]).To(Equal(
+			[]map[string]interface{}{
 				{
-					Handler: manifest.Handler{
-						AppName: "faas-droplet-echo",
-						Command: "./echo",
-					},
-					HTTPEvents: []manifest.HTTPEvent{
-						{
-							Path:   "/v1/goecho",
-							Method: "POST",
+					"path":   "/v1/goecho",
+					"method": "POST",
+					"cache": map[string]interface{}{
+						"duration": "1m",
+						"sub-type": map[string]interface{}{
+							"sub-key": "sub-value",
 						},
 					},
 				},
 			},
-		}))
+		))
 	})
 
 	o.Spec("it returns an error if there are no functions", func(t *testing.T) {
@@ -56,9 +66,10 @@ functions:
 functions:
 - handler:
    app_name: faas-droplet-echo
-  http_events:
-  - path: /v1/goecho
-    method: POST`)
+  events:
+    http:
+    - path: /v1/goecho
+      method: POST`)
 		Expect(t, err).To(Not(BeNil()))
 	})
 
@@ -69,30 +80,6 @@ functions:
 - handler:
    app_name: faas-droplet-echo
    command: ./echo`)
-		Expect(t, err).To(Not(BeNil()))
-	})
-
-	o.Spec("it returns an error if there is a function without a path", func(t *testing.T) {
-		var m manifest.Manifest
-		err := m.UnmarshalEnv(`
-functions:
-- handler:
-   app_name: faas-droplet-echo
-   command: ./echo
-  http_events:
-  - method: POST`)
-		Expect(t, err).To(Not(BeNil()))
-	})
-
-	o.Spec("it returns an error if there is a function without a method", func(t *testing.T) {
-		var m manifest.Manifest
-		err := m.UnmarshalEnv(`
-functions:
-- handler:
-   app_name: faas-droplet-echo
-   command: ./echo
-  http_events:
-  - path: /v1/goecho`)
 		Expect(t, err).To(Not(BeNil()))
 	})
 }
@@ -130,5 +117,81 @@ func TestManiestAppNames(t *testing.T) {
 
 		Expect(t, m.AppNames("default-name")).To(HaveLen(3))
 		Expect(t, m.AppNames("default-name")).To(Contain("app-name-1", "app-name-2", "default-name"))
+	})
+}
+
+func TestHTTPFunctionValidate(t *testing.T) {
+	t.Parallel()
+	o := onpar.New()
+	defer o.Run(t)
+
+	o.Spec("it does notreturn an error if all is well", func(t *testing.T) {
+		f := manifest.HTTPFunction{
+			Handler: manifest.Handler{
+				Command: "some-command",
+			},
+			Events: []manifest.HTTPEvent{
+				{
+					Path:   "/v1/path",
+					Method: "GET",
+				},
+			},
+		}
+
+		Expect(t, f.Validate()).To(BeNil())
+	})
+
+	o.Spec("it returns an error if the Command is not set", func(t *testing.T) {
+		f := manifest.HTTPFunction{
+			Handler: manifest.Handler{},
+			Events: []manifest.HTTPEvent{
+				{
+					Path:   "/v1/path",
+					Method: "GET",
+				},
+			},
+		}
+
+		Expect(t, f.Validate()).To(Not(BeNil()))
+	})
+
+	o.Spec("it returns an error if there aren't any events", func(t *testing.T) {
+		f := manifest.HTTPFunction{
+			Handler: manifest.Handler{
+				Command: "some-command",
+			},
+		}
+
+		Expect(t, f.Validate()).To(Not(BeNil()))
+	})
+
+	o.Spec("it returns an error if the Handler.Path is not set", func(t *testing.T) {
+		f := manifest.HTTPFunction{
+			Handler: manifest.Handler{
+				Command: "some-command",
+			},
+			Events: []manifest.HTTPEvent{
+				{
+					Method: "GET",
+				},
+			},
+		}
+
+		Expect(t, f.Validate()).To(Not(BeNil()))
+	})
+
+	o.Spec("it returns an error if the Handler.Method is not set", func(t *testing.T) {
+		f := manifest.HTTPFunction{
+			Handler: manifest.Handler{
+				Command: "some-command",
+			},
+			Events: []manifest.HTTPEvent{
+				{
+					Path: "/v1/path",
+				},
+			},
+		}
+
+		Expect(t, f.Validate()).To(Not(BeNil()))
 	})
 }

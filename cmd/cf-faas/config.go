@@ -14,6 +14,8 @@ type Config struct {
 	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
 	TokenPort  int `env:"TOKEN_PORT, required, report"`
 
+	PluginURLS map[string]string `env:"PLUGIN_URLS"`
+
 	Manifest      manifest.Manifest `env:"MANIFEST, required"`
 	InstanceIndex int               `env:"CF_INSTANCE_INDEX, required, report"`
 

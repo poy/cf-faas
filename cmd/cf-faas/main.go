@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/apoydence/cf-faas/internal/handlers"
+	"github.com/apoydence/cf-faas/internal/manifest"
 	cfgroupcache "github.com/apoydence/cf-groupcache"
 	gocapi "github.com/apoydence/go-capi"
 	"github.com/golang/groupcache"
@@ -49,7 +50,6 @@ func main() {
 	updateCachePeers(peerManager)
 
 	router := handlers.NewRouter(
-		cfg.Manifest,
 		"http://"+cfg.VcapApplication.ApplicationURIs[0],
 		cfg.VcapApplication.ApplicationName,
 		cfg.VcapApplication.ApplicationID,
@@ -61,7 +61,7 @@ func main() {
 		handlers.NewHTTPEvent,
 		handlers.NewCache,
 		log,
-	).BuildHandler()
+	).BuildHandler(parseManifest(cfg, log))
 
 	log.Fatal(
 		http.ListenAndServe(
@@ -69,6 +69,20 @@ func main() {
 			router,
 		),
 	)
+}
+
+func parseManifest(cfg Config, log *log.Logger) ([]string, []manifest.HTTPFunction) {
+	resolver := manifest.NewResolver(
+		cfg.PluginURLS,
+		http.DefaultClient,
+	)
+
+	fs, err := resolver.Resolve(cfg.Manifest)
+	if err != nil {
+		log.Fatalf("failed to resolve manifest: %s", err)
+	}
+
+	return cfg.Manifest.AppNames(cfg.VcapApplication.ApplicationName), fs
 }
 
 func startHealthEndpoint(cfg Config) {

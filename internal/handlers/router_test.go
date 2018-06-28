@@ -25,6 +25,7 @@ type TRR struct {
 	stubConstructorCache          *stubConstructorCache
 	groupcachePool                *spyHandler
 	r                             *handlers.Router
+	m                             []manifest.HTTPFunction
 }
 
 func TestRouter(t *testing.T) {
@@ -38,48 +39,46 @@ func TestRouter(t *testing.T) {
 		stubConstructorHTTPEvent := newStubConstructorHTTPEvent()
 		stubConstructorCache := newStubConstructorCache()
 		groupcachePool := newSpyHandler()
-		m := manifest.Manifest{
-			Functions: []manifest.Function{
-				{
-					Handler: manifest.Handler{
-						Command: "some-command",
-					},
-					HTTPEvents: []manifest.HTTPEvent{
-						{
-							Path:   "/v1/some-path",
-							Method: "GET",
-							Cache: struct {
-								Duration time.Duration `yaml:"duration"`
-								Header   []string      `yaml:"header"`
-							}{
-								Duration: time.Second,
-								Header:   []string{"A", "B"},
-							},
+		m := []manifest.HTTPFunction{
+			{
+				Handler: manifest.Handler{
+					Command: "some-command",
+				},
+				Events: []manifest.HTTPEvent{
+					{
+						Path:   "/v1/some-path",
+						Method: "GET",
+						Cache: struct {
+							Duration time.Duration `yaml:"duration"`
+							Header   []string      `yaml:"header"`
+						}{
+							Duration: time.Second,
+							Header:   []string{"A", "B"},
 						},
 					},
 				},
-				{
-					Handler: manifest.Handler{
-						Command: "some-command",
-					},
-					HTTPEvents: []manifest.HTTPEvent{
-						{
-							Path:   "/v1/some-path",
-							Method: "GET",
-						},
+			},
+			{
+				Handler: manifest.Handler{
+					Command: "some-command",
+				},
+				Events: []manifest.HTTPEvent{
+					{
+						Path:   "/v1/some-path",
+						Method: "GET",
 					},
 				},
 			},
 		}
 		return TRR{
 			T: t,
+			m: m,
 			stubConstructorRequestRelayer: stubConstructorRequestRelayer,
 			stubConstructorWorkerPool:     stubConstructorWorkerPool,
 			stubConstructorHTTPEvent:      stubConstructorHTTPEvent,
 			stubConstructorCache:          stubConstructorCache,
 			groupcachePool:                groupcachePool,
 			r: handlers.NewRouter(
-				m,
 				"http://some.url",
 				"some-application",
 				"some-id",
@@ -96,7 +95,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers a RequestRelayer", func(t TRR) {
-		h := t.r.BuildHandler()
+		h := t.r.BuildHandler(nil, t.m)
 		Expect(t, t.stubConstructorRequestRelayer.addr).To(Equal("http://some.url"))
 		Expect(t, t.stubConstructorRequestRelayer.pathPrefix).To(ContainSubstring("relayer"))
 		Expect(t, t.stubConstructorRequestRelayer.log).To(Not(BeNil()))
@@ -112,7 +111,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it registers the groupcache pool", func(t TRR) {
-		h := t.r.BuildHandler()
+		h := t.r.BuildHandler(nil, t.m)
 
 		recorder := httptest.NewRecorder()
 		req := httptest.NewRequest(
@@ -125,7 +124,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers a WorkerPool", func(t TRR) {
-		h := t.r.BuildHandler()
+		h := t.r.BuildHandler([]string{"some-application"}, t.m)
 		Expect(t, t.stubConstructorWorkerPool.addr).To(And(
 			ContainSubstring("http://some.url"),
 			ContainSubstring("/pool"),
@@ -148,7 +147,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers an HTTPEvent for each function", func(t TRR) {
-		h := t.r.BuildHandler()
+		h := t.r.BuildHandler(nil, t.m)
 		Expect(t, t.stubConstructorHTTPEvent.command).To(Equal("some-command"))
 		Expect(t, t.stubConstructorHTTPEvent.appName).To(Equal("some-application"))
 		Expect(t, t.stubConstructorHTTPEvent.relayer).To(Not(BeNil()))
@@ -170,7 +169,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers a cache for each function", func(t TRR) {
-		h := t.r.BuildHandler()
+		h := t.r.BuildHandler(nil, t.m)
 		_ = h
 		Expect(t, t.stubConstructorCache.name).To(Not(Equal("")))
 		Expect(t, t.stubConstructorCache.headers).To(Equal([]string{"A", "B"}))

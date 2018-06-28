@@ -14,7 +14,6 @@ import (
 )
 
 type Router struct {
-	m                 manifest.Manifest
 	applicationURI    string
 	applicationName   string
 	applicationID     string
@@ -29,7 +28,6 @@ type Router struct {
 }
 
 func NewRouter(
-	m manifest.Manifest,
 	applicationURI string,
 	applicationName string,
 	applicationID string,
@@ -43,7 +41,6 @@ func NewRouter(
 	log *log.Logger,
 ) *Router {
 	return &Router{
-		m:                 m,
 		applicationURI:    applicationURI,
 		applicationName:   applicationName,
 		applicationID:     applicationID,
@@ -58,37 +55,37 @@ func NewRouter(
 	}
 }
 
-func (r *Router) BuildHandler() http.Handler {
-	m := mux.NewRouter()
+func (r *Router) BuildHandler(appNames []string, functions []manifest.HTTPFunction) http.Handler {
+	mux := mux.NewRouter()
 	internalID := fmt.Sprintf("%d%d", rand.Int63(), time.Now().UnixNano())
 
 	// Request Relayer
 	relayer := r.newRequestRelayer(r.applicationURI, fmt.Sprintf("%s/relayer", internalID), r.log)
-	m.Handle(fmt.Sprintf("/%s/relayer/{id}", internalID), relayer).Methods(http.MethodGet, http.MethodPost)
+	mux.Handle(fmt.Sprintf("/%s/relayer/{id}", internalID), relayer).Methods(http.MethodGet, http.MethodPost)
 
 	// Groupcache Pool
-	m.Handle("/_group_cache_32723262323249873240/{name}/{key}", r.groupcachePool)
+	mux.Handle("/_group_cache_32723262323249873240/{name}/{key}", r.groupcachePool)
 
 	// WorkerPool
 	poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
 	pool := r.newWorkerPool(
 		r.applicationURI+poolPath,
-		r.m.AppNames(r.applicationName),
+		appNames,
 		fmt.Sprintf("%s:%d", r.applicationID, r.instanceIndex),
 		time.Second,
 		r.capiClient,
 		r.log,
 	)
-	m.Handle(poolPath, pool).Methods(http.MethodGet)
+	mux.Handle(poolPath, pool).Methods(http.MethodGet)
 
 	// Functions
-	r.buildFunctionHandlers(m, relayer, pool)
+	r.buildFunctionHandlers(functions, mux, relayer, pool)
 
-	return m
+	return mux
 }
 
-func (r *Router) buildFunctionHandlers(m *mux.Router, relayer *RequestRelayer, pool *WorkerPool) {
-	for _, f := range r.m.Functions {
+func (r *Router) buildFunctionHandlers(functions []manifest.HTTPFunction, mux *mux.Router, relayer *RequestRelayer, pool *WorkerPool) {
+	for _, f := range functions {
 		appName := f.Handler.AppName
 		if f.Handler.AppName == "" {
 			appName = r.applicationName
@@ -102,7 +99,7 @@ func (r *Router) buildFunctionHandlers(m *mux.Router, relayer *RequestRelayer, p
 			r.log,
 		)
 
-		for _, e := range f.HTTPEvents {
+		for _, e := range f.Events {
 			if e.Cache.Duration > 0 {
 				ceh := r.newCache(
 					base64.URLEncoding.EncodeToString([]byte(e.Path)),
@@ -111,11 +108,11 @@ func (r *Router) buildFunctionHandlers(m *mux.Router, relayer *RequestRelayer, p
 					e.Cache.Duration,
 					r.log,
 				)
-				m.Handle(e.Path, ceh).Methods(e.Method)
+				mux.Handle(e.Path, ceh).Methods(e.Method)
 				continue
 			}
 
-			m.Handle(e.Path, eh).Methods(e.Method)
+			mux.Handle(e.Path, eh).Methods(e.Method)
 		}
 	}
 }

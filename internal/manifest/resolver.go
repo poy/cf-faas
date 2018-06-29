@@ -32,6 +32,9 @@ func NewResolver(urls map[string]string, d Doer) *Resolver {
 func (r *Resolver) Resolve(m Manifest) ([]HTTPFunction, error) {
 	var results []HTTPFunction
 
+	// The value will only have the events for the corresponding key name.
+	reqs := make(map[string][]faas.ConvertFunction)
+
 	for _, f := range m.Functions {
 		for eventName, es := range f.Events {
 			if eventName == "http" {
@@ -44,37 +47,45 @@ func (r *Resolver) Resolve(m Manifest) ([]HTTPFunction, error) {
 				continue
 			}
 
-			convertReq := faas.ConvertFunctionRequest{
-				Handler: faas.ConvertFunctionHandler{
+			ff := faas.ConvertFunction{
+				Handler: faas.ConvertHandler{
 					Command: f.Handler.Command,
 					AppName: f.Handler.AppName,
 				},
-				Events: map[string][]map[string]interface{}{
-					eventName: es,
-				},
-			}
-			data, err := json.Marshal(convertReq)
-			if err != nil {
-				return nil, err
+				Events: make(map[string][]map[string]interface{}),
 			}
 
-			req, err := http.NewRequest(http.MethodPost, r.urls[eventName], bytes.NewReader(data))
-			if err != nil {
-				return nil, err
-			}
+			ff.Events[eventName] = append(ff.Events[eventName], es...)
 
-			resp, err := r.d.Do(req)
-			if err != nil {
-				return nil, err
-			}
-
-			fs, err := r.readFunctions(resp)
-			if err != nil {
-				return nil, err
-			}
-
-			results = append(results, fs...)
+			reqs[eventName] = append(reqs[eventName], ff)
 		}
+	}
+
+	for eventName, fs := range reqs {
+		convertReq := faas.ConvertRequest{
+			Functions: fs,
+		}
+		data, err := json.Marshal(convertReq)
+		if err != nil {
+			return nil, err
+		}
+
+		req, err := http.NewRequest(http.MethodPost, r.urls[eventName], bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := r.d.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		fs, err := r.readFunctions(resp)
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, fs...)
 	}
 
 	for _, f := range results {
@@ -148,7 +159,7 @@ func (r *Resolver) readFunctions(resp *http.Response) ([]HTTPFunction, error) {
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, data)
 	}
 
-	var h faas.ConvertFunctionResponse
+	var h faas.ConvertResponse
 	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
 		return nil, err
 	}

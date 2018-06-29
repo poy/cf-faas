@@ -242,22 +242,50 @@ func TestResolver(t *testing.T) {
 						},
 					},
 				},
+				{
+					Handler: manifest.Handler{
+						Command: "some-other-command",
+					},
+					Events: map[string][]map[string]interface{}{
+						"other-a": []map[string]interface{}{
+							{
+								"some-other-key": "some-other-data",
+							},
+						},
+					},
+				},
 			},
 		})
 
 		Expect(t, err).To(BeNil())
 		Expect(t, t.spyDoer.reqs).To(HaveLen(1))
 		Expect(t, t.spyDoer.bodies[0]).To(MatchJSON(`{
-			"handler": {
-				"command":"some-command"
-			},
-			"events": {
-				"other-a":[
-					{
-						"some-key":"some-data"
+			"functions": [
+			    {
+					"handler": {
+						"command":"some-command"
+					},
+					"events": {
+						"other-a":[
+							{
+								"some-key":"some-data"
+			        		}
+						]
 					}
-				]
-			}
+				},
+				{
+					"handler": {
+						"command":"some-other-command"
+					},
+					"events": {
+						"other-a":[
+							{
+								"some-other-key":"some-other-data"
+							}
+						]
+					}
+				}
+			]
 		}`))
 	})
 

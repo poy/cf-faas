@@ -2,26 +2,30 @@ package faas
 
 import "time"
 
-type ConvertFunctionRequest struct {
-	Handler ConvertFunctionHandler              `json:"handler"`
+type ConvertRequest struct {
+	Functions []ConvertFunction `json:"functions"`
+}
+
+type ConvertFunction struct {
+	Handler ConvertHandler                      `json:"handler"`
 	Events  map[string][]map[string]interface{} `json:"events"`
 }
 
-type ConvertFunctionHandler struct {
+type ConvertHandler struct {
 	Command string `json:"command"`
 	AppName string `json:"app_name,omitempty"`
 }
 
-type ConvertFunctionResponse struct {
-	Functions []ConvertFunctionResult `json:"functions"`
+type ConvertResponse struct {
+	Functions []ConvertHTTPFunction `json:"functions"`
 }
 
-type ConvertFunctionResult struct {
-	Handler ConvertFunctionHandler     `json:"handler"`
-	Events  []ConvertFunctionHTTPEvent `json:"events"`
+type ConvertHTTPFunction struct {
+	Handler ConvertHandler     `json:"handler"`
+	Events  []ConvertHTTPEvent `json:"events"`
 }
 
-type ConvertFunctionHTTPEvent struct {
+type ConvertHTTPEvent struct {
 	Path   string `yaml:"path"`
 	Method string `yaml:"method"`
 	Cache  struct {

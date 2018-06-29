@@ -3,6 +3,7 @@ package manifest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -138,12 +139,39 @@ func (r *Resolver) readFunctions(resp *http.Response) ([]HTTPFunction, error) {
 		resp.Body.Close()
 	}()
 
-	var h struct {
-		Functions []HTTPFunction `json:"functions"`
+	if resp.StatusCode != http.StatusOK {
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, data)
 	}
+
+	var h faas.ConvertFunctionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&h); err != nil {
 		return nil, err
 	}
 
-	return h.Functions, nil
+	var results []HTTPFunction
+	for _, f := range h.Functions {
+		hf := HTTPFunction{
+			Handler: Handler{
+				Command: f.Handler.Command,
+				AppName: f.Handler.AppName,
+			},
+		}
+
+		for _, e := range f.Events {
+			hf.Events = append(hf.Events, HTTPEvent{
+				Path:   e.Path,
+				Method: e.Method,
+				Cache:  e.Cache,
+			})
+		}
+
+		results = append(results, hf)
+	}
+
+	return results, nil
 }

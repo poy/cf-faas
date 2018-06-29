@@ -2,6 +2,7 @@ package manifest_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/apoydence/cf-faas/internal/manifest"
 	"github.com/apoydence/onpar"
@@ -193,5 +194,111 @@ func TestHTTPFunctionValidate(t *testing.T) {
 		}
 
 		Expect(t, f.Validate()).To(Not(BeNil()))
+	})
+}
+
+func TestHTTPHTTPManifestUnmarshal(t *testing.T) {
+	t.Parallel()
+	o := onpar.New()
+	defer o.Run(t)
+
+	o.Spec("it returns a manifest", func(t *testing.T) {
+		var m manifest.HTTPManifest
+		err := m.UnmarshalEnv(`
+functions:
+- handler:
+   app_name: faas-droplet-echo
+   command: ./echo
+  events:
+  - path: /v1/goecho
+    method: POST
+    cache:
+      duration: 1m
+`)
+		Expect(t, err).To(BeNil())
+
+		Expect(t, m.Functions).To(HaveLen(1))
+		Expect(t, m.Functions[0].Handler).To(Equal(manifest.Handler{
+			AppName: "faas-droplet-echo",
+			Command: "./echo",
+		}))
+		Expect(t, m.Functions[0].Events).To(HaveLen(1))
+		Expect(t, m.Functions[0].Events).To(Contain(
+			manifest.HTTPEvent{
+				Path:   "/v1/goecho",
+				Method: "POST",
+				Cache: struct {
+					Duration time.Duration `yaml:"duration"`
+					Header   []string      `yaml:"header"`
+				}{
+					Duration: time.Minute,
+				},
+			},
+		))
+	})
+
+	o.Spec("it handles an empty string", func(t *testing.T) {
+		var m manifest.HTTPManifest
+		err := m.UnmarshalEnv(``)
+
+		Expect(t, err).To(BeNil())
+	})
+
+	o.Spec("it returns an error if there is a function without a command", func(t *testing.T) {
+		var m manifest.HTTPManifest
+		err := m.UnmarshalEnv(`
+functions:
+- handler:
+   app_name: faas-droplet-echo
+  events:
+  - path: /v1/goecho
+    method: POST`)
+		Expect(t, err).To(Not(BeNil()))
+	})
+
+	o.Spec("it returns an error if there is a function without any events", func(t *testing.T) {
+		var m manifest.HTTPManifest
+		err := m.UnmarshalEnv(`
+functions:
+- handler:
+   app_name: faas-droplet-echo
+   command: ./echo`)
+		Expect(t, err).To(Not(BeNil()))
+	})
+}
+
+func TestHTTPManiestAppNames(t *testing.T) {
+	t.Parallel()
+	o := onpar.New()
+	defer o.Run(t)
+
+	o.Spec("it lists every app name used", func(t *testing.T) {
+		m := manifest.HTTPManifest{
+			Functions: []manifest.HTTPFunction{
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-2",
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+				},
+				{
+					Handler: manifest.Handler{
+					// Use default
+					},
+				},
+			},
+		}
+
+		Expect(t, m.AppNames("default-name")).To(HaveLen(3))
+		Expect(t, m.AppNames("default-name")).To(Contain("app-name-1", "app-name-2", "default-name"))
 	})
 }

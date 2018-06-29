@@ -91,15 +91,33 @@ func TestResolver(t *testing.T) {
 			}`)),
 		}
 
+		spyDoer.m["POST:http://invalid.status"] = &http.Response{
+			StatusCode: 400,
+			Body: ioutil.NopCloser(strings.NewReader(`{
+				"functions":[
+					{
+						"handler":{
+							"command":"some-command"
+						},
+						"events": [{
+						  "path":"/v1/b1",
+						  "method":"PUT"
+					    }]
+					}
+				]
+			}`)),
+		}
+
 		return TR{
 			T:       t,
 			spyDoer: spyDoer,
 			r: manifest.NewResolver(map[string]string{
-				"other-a":       "http://url.a",
-				"other-b":       "http://url.b",
-				"invalid-url":   "-:-",
-				"invalid-json":  "http://invalid.json",
-				"invalid-event": "http://invalid.event",
+				"other-a":        "http://url.a",
+				"other-b":        "http://url.b",
+				"invalid-url":    "-:-",
+				"invalid-json":   "http://invalid.json",
+				"invalid-event":  "http://invalid.event",
+				"invalid-status": "http://invalid.status",
 			}, spyDoer),
 		}
 	})
@@ -316,6 +334,27 @@ func TestResolver(t *testing.T) {
 					},
 					Events: map[string][]map[string]interface{}{
 						"invalid-event": []map[string]interface{}{
+							{
+								"some-key": "some-data",
+							},
+						},
+					},
+				},
+			},
+		})
+
+		Expect(t, err).To(Not(BeNil()))
+	})
+
+	o.Spec("it returns an error if a result is not a 200", func(t TR) {
+		_, err := t.r.Resolve(manifest.Manifest{
+			Functions: []manifest.Function{
+				{
+					Handler: manifest.Handler{
+						Command: "some-command",
+					},
+					Events: map[string][]map[string]interface{}{
+						"invalid-status": []map[string]interface{}{
 							{
 								"some-key": "some-data",
 							},

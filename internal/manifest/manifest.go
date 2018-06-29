@@ -32,6 +32,50 @@ type HTTPEvent struct {
 	} `yaml:"cache"`
 }
 
+type HTTPManifest struct {
+	Functions []HTTPFunction `yaml:"functions"`
+}
+
+func (m *HTTPManifest) UnmarshalEnv(data string) error {
+	if data == "" {
+		return nil
+	}
+
+	if err := yaml.NewDecoder(strings.NewReader(data)).Decode(&m); err != nil {
+		return err
+	}
+
+	for _, f := range m.Functions {
+		if f.Handler.Command == "" {
+			return errors.New("invalid empty command")
+		}
+
+		if len(f.Events) == 0 {
+			return errors.New("invalid empty events")
+		}
+	}
+
+	return nil
+}
+
+func (m *HTTPManifest) AppNames(defaultName string) []string {
+	var appNames []string
+	ma := map[string]bool{}
+	for _, f := range m.Functions {
+		if f.Handler.AppName == "" {
+			f.Handler.AppName = defaultName
+		}
+
+		if ma[f.Handler.AppName] {
+			continue
+		}
+
+		ma[f.Handler.AppName] = true
+		appNames = append(appNames, f.Handler.AppName)
+	}
+	return appNames
+}
+
 type HTTPFunction struct {
 	Handler Handler     `yaml:"handler"`
 	Events  []HTTPEvent `yaml:"events"`

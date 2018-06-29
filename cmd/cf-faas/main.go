@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/apoydence/cf-faas/internal/handlers"
@@ -49,6 +50,41 @@ func main() {
 	)
 	updateCachePeers(peerManager)
 
+	// Bootstrap
+	bootstrapCtx, bootstrapCancel := context.WithCancel(context.Background())
+	bootstrapRouter := handlers.NewRouter(
+		"http://"+cfg.VcapApplication.ApplicationURIs[0],
+		cfg.VcapApplication.ApplicationName,
+		cfg.VcapApplication.ApplicationID,
+		cfg.InstanceIndex,
+		gcPool,
+		capiClient,
+		handlers.NewRequestRelayer,
+		handlers.NewWorkerPool,
+		handlers.NewHTTPEvent,
+		handlers.NewCache,
+		log,
+	).BuildHandler(parseHTTPManifest(bootstrapCtx, cfg, log))
+
+	hotSwap := handlers.NewHotSwap(bootstrapRouter)
+
+	var wg, ready sync.WaitGroup
+	wg.Add(1)
+	ready.Add(1)
+	defer wg.Wait()
+	go func() {
+		defer wg.Done()
+		ready.Done()
+		log.Fatal(
+			http.ListenAndServe(
+				fmt.Sprintf(":%d", cfg.Port),
+				hotSwap,
+			),
+		)
+	}()
+
+	ready.Wait()
+
 	router := handlers.NewRouter(
 		"http://"+cfg.VcapApplication.ApplicationURIs[0],
 		cfg.VcapApplication.ApplicationName,
@@ -63,12 +99,12 @@ func main() {
 		log,
 	).BuildHandler(parseManifest(context.Background(), cfg, log))
 
-	log.Fatal(
-		http.ListenAndServe(
-			fmt.Sprintf(":%d", cfg.Port),
-			router,
-		),
-	)
+	hotSwap.Swap(router)
+	bootstrapCancel()
+}
+
+func parseHTTPManifest(ctx context.Context, cfg Config, log *log.Logger) (context.Context, []string, []manifest.HTTPFunction) {
+	return ctx, cfg.BootstrapManifest.AppNames(cfg.VcapApplication.ApplicationName), cfg.BootstrapManifest.Functions
 }
 
 func parseManifest(ctx context.Context, cfg Config, log *log.Logger) (context.Context, []string, []manifest.HTTPFunction) {

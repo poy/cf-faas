@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -15,6 +16,8 @@ type Config struct {
 	TokenPort  int `env:"TOKEN_PORT, required, report"`
 
 	PluginURLS map[string]string `env:"PLUGIN_URLS"`
+
+	BootstrapManifest manifest.HTTPManifest `env:"BOOTSTRAP_MANIFEST"`
 
 	Manifest      manifest.Manifest `env:"MANIFEST, required"`
 	InstanceIndex int               `env:"CF_INSTANCE_INDEX, required, report"`
@@ -44,6 +47,19 @@ func LoadConfig(log *log.Logger) Config {
 
 	// Use HTTP so we can use HTTP_PROXY
 	cfg.VcapApplication.CAPIAddr = strings.Replace(cfg.VcapApplication.CAPIAddr, "https", "http", 1)
+
+	for k, v := range cfg.PluginURLS {
+		if len(v) == 0 {
+			continue
+		}
+
+		if v[0] == '/' {
+			cfg.PluginURLS[k] = fmt.Sprintf("http://localhost:%d%s", cfg.Port, v)
+			continue
+		}
+
+		cfg.PluginURLS[k] = "http://" + v
+	}
 
 	envstruct.WriteReport(&cfg)
 

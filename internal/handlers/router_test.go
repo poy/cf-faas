@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -212,8 +213,9 @@ func (s *stubConstructorRequestRelayer) New(addr, pathPrefix string, log *log.Lo
 }
 
 type spyHandler struct {
-	w http.ResponseWriter
-	r *http.Request
+	mu sync.Mutex
+	w  http.ResponseWriter
+	r  *http.Request
 }
 
 func newSpyHandler() *spyHandler {
@@ -221,6 +223,8 @@ func newSpyHandler() *spyHandler {
 }
 
 func (s *spyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.w = w
 	s.r = r
 }

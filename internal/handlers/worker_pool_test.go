@@ -37,7 +37,7 @@ func TestWorkerPool(t *testing.T) {
 			T:              t,
 			spyTaskCreator: spyTaskCreator,
 			recorder:       httptest.NewRecorder(),
-			p:              handlers.NewWorkerPool("https://some.url", []string{"a", "b"}, "app-instance", time.Millisecond, spyTaskCreator, log.New(ioutil.Discard, "", 0)),
+			p:              handlers.NewWorkerPool(context.Background(), "https://some.url", []string{"a", "b"}, "app-instance", time.Millisecond, spyTaskCreator, log.New(ioutil.Discard, "", 0)),
 		}
 	})
 

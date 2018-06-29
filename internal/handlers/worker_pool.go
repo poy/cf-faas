@@ -37,6 +37,7 @@ type TaskCreator interface {
 }
 
 func NewWorkerPool(
+	ctx context.Context,
 	addr string,
 	appNames []string,
 	appInstance string,
@@ -55,7 +56,7 @@ func NewWorkerPool(
 		addr:        addr,
 	}
 
-	go p.taskThreshold()
+	go p.taskThreshold(ctx)
 
 	return p
 }
@@ -120,11 +121,18 @@ func (p *WorkerPool) tryAddToThreshold() bool {
 	return false
 }
 
-func (p *WorkerPool) taskThreshold() {
-	for range time.Tick(30 * time.Second) {
-		p.mu.Lock()
-		p.taskCount = 0
-		p.mu.Unlock()
+func (p *WorkerPool) taskThreshold(ctx context.Context) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			p.mu.Lock()
+			p.taskCount = 0
+			p.mu.Unlock()
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 

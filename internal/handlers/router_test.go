@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -95,7 +96,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers a RequestRelayer", func(t TRR) {
-		h := t.r.BuildHandler(nil, t.m)
+		h := t.r.BuildHandler(context.Background(), nil, t.m)
 		Expect(t, t.stubConstructorRequestRelayer.addr).To(Equal("http://some.url"))
 		Expect(t, t.stubConstructorRequestRelayer.pathPrefix).To(ContainSubstring("relayer"))
 		Expect(t, t.stubConstructorRequestRelayer.log).To(Not(BeNil()))
@@ -111,7 +112,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it registers the groupcache pool", func(t TRR) {
-		h := t.r.BuildHandler(nil, t.m)
+		h := t.r.BuildHandler(context.Background(), nil, t.m)
 
 		recorder := httptest.NewRecorder()
 		req := httptest.NewRequest(
@@ -124,11 +125,12 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers a WorkerPool", func(t TRR) {
-		h := t.r.BuildHandler([]string{"some-application"}, t.m)
+		h := t.r.BuildHandler(context.Background(), []string{"some-application"}, t.m)
 		Expect(t, t.stubConstructorWorkerPool.addr).To(And(
 			ContainSubstring("http://some.url"),
 			ContainSubstring("/pool"),
 		))
+		Expect(t, t.stubConstructorWorkerPool.ctx).To(Not(BeNil()))
 		Expect(t, t.stubConstructorWorkerPool.appNames).To(Contain("some-application"))
 		Expect(t, t.stubConstructorWorkerPool.appInstance).To(Equal("some-id:99"))
 		Expect(t, t.stubConstructorWorkerPool.addTaskThreshold).To(Equal(time.Second))
@@ -147,7 +149,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers an HTTPEvent for each function", func(t TRR) {
-		h := t.r.BuildHandler(nil, t.m)
+		h := t.r.BuildHandler(context.Background(), nil, t.m)
 		Expect(t, t.stubConstructorHTTPEvent.command).To(Equal("some-command"))
 		Expect(t, t.stubConstructorHTTPEvent.appName).To(Equal("some-application"))
 		Expect(t, t.stubConstructorHTTPEvent.relayer).To(Not(BeNil()))
@@ -169,7 +171,7 @@ func TestRouter(t *testing.T) {
 	})
 
 	o.Spec("it creates and registers a cache for each function", func(t TRR) {
-		h := t.r.BuildHandler(nil, t.m)
+		h := t.r.BuildHandler(context.Background(), nil, t.m)
 		_ = h
 		Expect(t, t.stubConstructorCache.name).To(Not(Equal("")))
 		Expect(t, t.stubConstructorCache.headers).To(Equal([]string{"A", "B"}))
@@ -224,6 +226,7 @@ func (s *spyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type stubConstructorWorkerPool struct {
+	ctx              context.Context
 	addr             string
 	appNames         []string
 	appInstance      string
@@ -236,7 +239,8 @@ func newStubConstructorWorkerPool() *stubConstructorWorkerPool {
 	return &stubConstructorWorkerPool{}
 }
 
-func (s *stubConstructorWorkerPool) New(addr string, appNames []string, appInstance string, addTaskThreshold time.Duration, c handlers.TaskCreator, log *log.Logger) *handlers.WorkerPool {
+func (s *stubConstructorWorkerPool) New(ctx context.Context, addr string, appNames []string, appInstance string, addTaskThreshold time.Duration, c handlers.TaskCreator, log *log.Logger) *handlers.WorkerPool {
+	s.ctx = ctx
 	s.addr = addr
 	s.appNames = appNames
 	s.appInstance = appInstance

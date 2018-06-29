@@ -61,7 +61,7 @@ func main() {
 		handlers.NewHTTPEvent,
 		handlers.NewCache,
 		log,
-	).BuildHandler(parseManifest(cfg, log))
+	).BuildHandler(parseManifest(context.Background(), cfg, log))
 
 	log.Fatal(
 		http.ListenAndServe(
@@ -71,7 +71,7 @@ func main() {
 	)
 }
 
-func parseManifest(cfg Config, log *log.Logger) ([]string, []manifest.HTTPFunction) {
+func parseManifest(ctx context.Context, cfg Config, log *log.Logger) (context.Context, []string, []manifest.HTTPFunction) {
 	resolver := manifest.NewResolver(
 		cfg.PluginURLS,
 		http.DefaultClient,
@@ -82,7 +82,7 @@ func parseManifest(cfg Config, log *log.Logger) ([]string, []manifest.HTTPFuncti
 		log.Fatalf("failed to resolve manifest: %s", err)
 	}
 
-	return cfg.Manifest.AppNames(cfg.VcapApplication.ApplicationName), fs
+	return ctx, cfg.Manifest.AppNames(cfg.VcapApplication.ApplicationName), fs
 }
 
 func startHealthEndpoint(cfg Config) {

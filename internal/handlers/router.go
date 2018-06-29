@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -21,7 +22,7 @@ type Router struct {
 	groupcachePool    http.Handler
 	capiClient        *gocapi.Client
 	newRequestRelayer func(addr, pathPrefix string, log *log.Logger) *RequestRelayer
-	newWorkerPool     func(addr string, appNames []string, appInstance string, addTaskThreshold time.Duration, c TaskCreator, log *log.Logger) *WorkerPool
+	newWorkerPool     func(ctx context.Context, addr string, appNames []string, appInstance string, addTaskThreshold time.Duration, c TaskCreator, log *log.Logger) *WorkerPool
 	newHTTPEvent      func(command string, appName string, r Relayer, s WorkSubmitter, log *log.Logger) *HTTPEvent
 	newCache          func(name string, headers []string, h http.Handler, d time.Duration, log *log.Logger) *Cache
 	log               *log.Logger
@@ -35,7 +36,7 @@ func NewRouter(
 	groupcachePool http.Handler,
 	capiClient *gocapi.Client,
 	newRequestRelayer func(addr, pathPrefix string, log *log.Logger) *RequestRelayer,
-	newWorkerPool func(addr string, appNames []string, appInstance string, addTaskThreshold time.Duration, c TaskCreator, log *log.Logger) *WorkerPool,
+	newWorkerPool func(ctx context.Context, addr string, appNames []string, appInstance string, addTaskThreshold time.Duration, c TaskCreator, log *log.Logger) *WorkerPool,
 	newHTTPEvent func(command string, appName string, r Relayer, s WorkSubmitter, log *log.Logger) *HTTPEvent,
 	newCache func(name string, headers []string, h http.Handler, d time.Duration, log *log.Logger) *Cache,
 	log *log.Logger,
@@ -55,7 +56,7 @@ func NewRouter(
 	}
 }
 
-func (r *Router) BuildHandler(appNames []string, functions []manifest.HTTPFunction) http.Handler {
+func (r *Router) BuildHandler(ctx context.Context, appNames []string, functions []manifest.HTTPFunction) http.Handler {
 	mux := mux.NewRouter()
 	internalID := fmt.Sprintf("%d%d", rand.Int63(), time.Now().UnixNano())
 
@@ -69,6 +70,7 @@ func (r *Router) BuildHandler(appNames []string, functions []manifest.HTTPFuncti
 	// WorkerPool
 	poolPath := fmt.Sprintf("/%s/pool/%d%d", internalID, rand.Int63(), time.Now().UnixNano())
 	pool := r.newWorkerPool(
+		ctx,
 		r.applicationURI+poolPath,
 		appNames,
 		fmt.Sprintf("%s:%d", r.applicationID, r.instanceIndex),

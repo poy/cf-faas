@@ -40,13 +40,13 @@ functions:
 		}))
 		Expect(t, m.Functions[0].Events).To(HaveLen(1))
 		Expect(t, m.Functions[0].Events["http"]).To(Equal(
-			[]map[string]interface{}{
+			[]manifest.GenericData{
 				{
 					"path":   "/v1/goecho",
 					"method": "POST",
-					"cache": map[string]interface{}{
+					"cache": manifest.GenericData{
 						"duration": "1m",
-						"sub-type": map[string]interface{}{
+						"sub-type": manifest.GenericData{
 							"sub-key": "sub-value",
 						},
 					},

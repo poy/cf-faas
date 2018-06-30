@@ -6,9 +6,11 @@ type ConvertRequest struct {
 	Functions []ConvertFunction `json:"functions"`
 }
 
+type GenericData map[string]interface{}
+
 type ConvertFunction struct {
-	Handler ConvertHandler                      `json:"handler"`
-	Events  map[string][]map[string]interface{} `json:"events"`
+	Handler ConvertHandler           `json:"handler"`
+	Events  map[string][]GenericData `json:"events"`
 }
 
 type ConvertHandler struct {

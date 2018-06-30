@@ -13,9 +13,11 @@ type Manifest struct {
 	Functions []Function `yaml:"functions"`
 }
 
+type GenericData map[string]interface{}
+
 type Function struct {
-	Handler Handler                             `yaml:"handler"`
-	Events  map[string][]map[string]interface{} `yaml:"events"`
+	Handler Handler                  `yaml:"handler"`
+	Events  map[string][]GenericData `yaml:"events"`
 }
 
 type Handler struct {
@@ -147,7 +149,7 @@ func (m *Manifest) convertMap(i interface{}) interface{} {
 		return i
 	}
 
-	newM := make(map[string]interface{})
+	newM := make(GenericData)
 
 	for k, v := range mi {
 		s, ok := k.(string)

@@ -129,8 +129,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"http": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"http": []manifest.GenericData{
 							{
 								"path":   "/v1/path",
 								"method": "GET",
@@ -143,12 +143,12 @@ func TestResolver(t *testing.T) {
 								"method": "PUT",
 							},
 						},
-						"other-a": []map[string]interface{}{
+						"other-a": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},
 						},
-						"other-b": []map[string]interface{}{
+						"other-b": []manifest.GenericData{
 							{
 								"some-other-key": "some-other-data",
 							},
@@ -234,8 +234,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"other-a": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"other-a": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},
@@ -246,8 +246,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-other-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"other-a": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"other-a": []manifest.GenericData{
 							{
 								"some-other-key": "some-other-data",
 							},
@@ -296,8 +296,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"invalid-url": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"invalid-url": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},
@@ -318,8 +318,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"other-a": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"other-a": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},
@@ -339,8 +339,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"invalid-json": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"invalid-json": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},
@@ -360,8 +360,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"invalid-event": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"invalid-event": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},
@@ -381,8 +381,8 @@ func TestResolver(t *testing.T) {
 					Handler: manifest.Handler{
 						Command: "some-command",
 					},
-					Events: map[string][]map[string]interface{}{
-						"invalid-status": []map[string]interface{}{
+					Events: map[string][]manifest.GenericData{
+						"invalid-status": []manifest.GenericData{
 							{
 								"some-key": "some-data",
 							},

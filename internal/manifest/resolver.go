@@ -52,10 +52,12 @@ func (r *Resolver) Resolve(m Manifest) ([]HTTPFunction, error) {
 					Command: f.Handler.Command,
 					AppName: f.Handler.AppName,
 				},
-				Events: make(map[string][]map[string]interface{}),
+				Events: make(map[string][]faas.GenericData),
 			}
 
-			ff.Events[eventName] = append(ff.Events[eventName], es...)
+			for _, e := range es {
+				ff.Events[eventName] = append(ff.Events[eventName], faas.GenericData(e))
+			}
 
 			reqs[eventName] = append(reqs[eventName], ff)
 		}
@@ -97,7 +99,7 @@ func (r *Resolver) Resolve(m Manifest) ([]HTTPFunction, error) {
 	return results, nil
 }
 
-func (r *Resolver) parseHTTPEvent(f Function, events []map[string]interface{}) (HTTPFunction, error) {
+func (r *Resolver) parseHTTPEvent(f Function, events []GenericData) (HTTPFunction, error) {
 	var es []HTTPEvent
 
 	data, err := json.Marshal(events)

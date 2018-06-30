@@ -30,7 +30,9 @@ func (a *VcapApplication) UnmarshalEnv(data string) error {
 }
 
 func LoadConfig(log *log.Logger) Config {
-	cfg := Config{}
+	cfg := Config{
+		DataDir: "/dev/shm",
+	}
 	if err := envstruct.Load(&cfg); err != nil {
 		log.Fatal(err)
 	}

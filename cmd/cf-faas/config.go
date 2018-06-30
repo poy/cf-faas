@@ -13,7 +13,6 @@ import (
 type Config struct {
 	Port       int `env:"PORT, required, report"`
 	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
-	TokenPort  int `env:"TOKEN_PORT, required, report"`
 
 	PluginURLS map[string]string `env:"PLUGIN_URLS"`
 

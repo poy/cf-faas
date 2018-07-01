@@ -74,17 +74,17 @@ func (r *Resolver) Resolve(m Manifest) ([]HTTPFunction, error) {
 
 		req, err := http.NewRequest(http.MethodPost, r.urls[eventName], bytes.NewReader(data))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("building request for %s (eventName=%s): %s", r.urls[eventName], eventName, err)
 		}
 
 		resp, err := r.d.Do(req)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("requesting results for %s (eventName=%s): %s", r.urls[eventName], eventName, err)
 		}
 
 		fs, err := r.readFunctions(resp)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("reading results for %s (eventName=%s): %s", r.urls[eventName], eventName, err)
 		}
 
 		results = append(results, fs...)
@@ -116,7 +116,6 @@ func (r *Resolver) parseHTTPEvent(f Function, events []GenericData) (HTTPFunctio
 		} `json:"cache"`
 	}
 
-	// var he []HTTPEvent
 	if err := json.Unmarshal(data, &he); err != nil {
 		return HTTPFunction{}, err
 	}

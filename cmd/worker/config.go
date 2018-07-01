@@ -13,7 +13,7 @@ type Config struct {
 	AppInstance string   `env:"X_CF_APP_INSTANCE, required"`
 	AppNames    []string `env:"APP_NAMES, required"`
 	HTTPProxy   string   `env:"HTTP_PROXY, required"`
-	DataDir     string   `env:"DATA_DIR, required"`
+	DataDir     string   `env:"DATA_DIR"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
 }

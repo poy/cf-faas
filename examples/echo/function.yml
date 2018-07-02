@@ -1,0 +1,10 @@
+---
+
+functions:
+- handler:
+    app_name: faas-echo
+    command: ./echo
+  events:
+    http:
+    - path: /v1/echo
+      method: POST

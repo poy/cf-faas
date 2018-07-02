@@ -14,7 +14,7 @@ type Config struct {
 	Port       int `env:"PORT, required, report"`
 	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
 
-	PluginURLS map[string]string `env:"PLUGIN_URLS"`
+	ResolverURLs map[string]string `env:"RESOLVER_URLS"`
 
 	BootstrapManifest manifest.HTTPManifest `env:"BOOTSTRAP_MANIFEST"`
 
@@ -47,17 +47,17 @@ func LoadConfig(log *log.Logger) Config {
 	// Use HTTP so we can use HTTP_PROXY
 	cfg.VcapApplication.CAPIAddr = strings.Replace(cfg.VcapApplication.CAPIAddr, "https", "http", 1)
 
-	for k, v := range cfg.PluginURLS {
+	for k, v := range cfg.ResolverURLs {
 		if len(v) == 0 {
 			continue
 		}
 
 		if v[0] == '/' {
-			cfg.PluginURLS[k] = fmt.Sprintf("http://localhost:%d%s", cfg.Port, v)
+			cfg.ResolverURLs[k] = fmt.Sprintf("http://localhost:%d%s", cfg.Port, v)
 			continue
 		}
 
-		cfg.PluginURLS[k] = "http://" + v
+		cfg.ResolverURLs[k] = "http://" + v
 	}
 
 	envstruct.WriteReport(&cfg)

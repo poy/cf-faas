@@ -109,7 +109,7 @@ func parseHTTPManifest(ctx context.Context, cfg Config, log *log.Logger) (contex
 
 func parseManifest(ctx context.Context, cfg Config, log *log.Logger) (context.Context, []string, []manifest.HTTPFunction) {
 	resolver := manifest.NewResolver(
-		cfg.PluginURLS,
+		cfg.ResolverURLs,
 		http.DefaultClient,
 	)
 

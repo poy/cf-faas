@@ -15,8 +15,9 @@ function print_usage {
     echo " -a application name (REQUIRED) - The given name (and route) for CF-FaaS."
     echo " -m manifest path (REQUIRED)    - The path to the YAML file that configures the endpoints."
     echo " -b bootstrap manifest path     - The path to the YAML file that configures the bootstrap endpoints."
-    echo " -r resolver URLS               - Comma separated list of key values (key:value). Each key-value pair is an event"
-    echo "                                  name and URL (e.g., eventname:some.url/v1/path,other-event:/v2/bootstrap/path)."
+    echo " -r resolver URLS               - Comma separated list of key values (e.g., key1:value1,key2:value2). "
+    echo "                                  Each key-value pair is an event name and URL"
+    echo "                                  (e.g., eventname:some.url/v1/path,other-event:/v2/bootstrap/path)."
     echo " -h help                        - Shows this usage."
     echo
     echo "More information available at https://github.com/apoydence/cf-faas"
@@ -66,6 +67,7 @@ echo "building CF-FaaS binaries..."
 GOOS=linux go build -o $TEMP_DIR/cf-faas ./cmd/cf-faas &> /dev/null || fail "failed to build cf-faas"
 GOOS=linux go build -o $TEMP_DIR/task-runner ./cmd/task-runner &> /dev/null || fail "failed to build cf-faas' task-runner"
 GOOS=linux go build -o $TEMP_DIR/worker ./cmd/worker &> /dev/null || fail "failed to build cf-faas' worker"
+GOOS=linux go build -o $TEMP_DIR/manifest-parser ./cmd/manifest-parser &> /dev/null || fail "failed to build cf-faas' manifest-parser"
 cp cmd/cf-faas/run.sh $TEMP_DIR
 echo "done building CF-FaaS binaries."
 

@@ -8,3 +8,4 @@ functions:
     http:
     - path: /v1/echo
       method: POST
+      no_auth: true

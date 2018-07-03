@@ -121,6 +121,78 @@ func TestManiestAppNames(t *testing.T) {
 	})
 }
 
+func TestManiestOpenEndpoints(t *testing.T) {
+	t.Parallel()
+	o := onpar.New()
+	defer o.Run(t)
+
+	o.Spec("it lists every open endpoint (no_auth=true)", func(t *testing.T) {
+		m := manifest.Manifest{
+			Functions: []manifest.Function{
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+					Events: map[string][]manifest.GenericData{
+						"http": []manifest.GenericData{
+							{
+								"path": "/v1/path",
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-2",
+					},
+					Events: map[string][]manifest.GenericData{
+						"http": []manifest.GenericData{
+							{
+								"path":    "/v2/path",
+								"no_auth": true,
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+					Events: map[string][]manifest.GenericData{
+						"http": []manifest.GenericData{
+							{
+								"path":    "/v3/path",
+								"no_auth": false,
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+					Events: map[string][]manifest.GenericData{
+						"http": []manifest.GenericData{
+							{
+								"path":    99, // obviously invalid
+								"no_auth": true,
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+					// Use default
+					},
+				},
+			},
+		}
+
+		Expect(t, m.OpenEndpoints()).To(HaveLen(1))
+		Expect(t, m.OpenEndpoints()).To(Contain("/v2/path"))
+	})
+}
+
 func TestHTTPFunctionValidate(t *testing.T) {
 	t.Parallel()
 	o := onpar.New()

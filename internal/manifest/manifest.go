@@ -28,6 +28,7 @@ type Handler struct {
 type HTTPEvent struct {
 	Path   string `yaml:"path"`
 	Method string `yaml:"method"`
+	NoAuth bool   `yaml:"no_auth"`
 	Cache  struct {
 		Duration time.Duration `yaml:"duration"`
 		Header   []string      `yaml:"header"`
@@ -179,4 +180,23 @@ func (m *Manifest) AppNames(defaultName string) []string {
 		appNames = append(appNames, f.Handler.AppName)
 	}
 	return appNames
+}
+
+func (m *Manifest) OpenEndpoints() []string {
+	var openEndpoints []string
+
+	for _, f := range m.Functions {
+		for _, e := range f.Events["http"] {
+			if v, ok := e["no_auth"].(bool); ok && v {
+				v, ok := e["path"].(string)
+				if !ok {
+					continue
+				}
+
+				openEndpoints = append(openEndpoints, v)
+			}
+		}
+	}
+
+	return openEndpoints
 }

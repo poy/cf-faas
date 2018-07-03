@@ -42,7 +42,6 @@ of it is taken care of for you.
 | MANIFEST | Required | The manifest (in YAML) that configures the functions. |
 | BOOTSTRAP_MANIFEST | Optional | The manifest (in YAML) that adds function handlers for resolving. The manifest is of the format `HTTPManifest` (meaning it does not have different event types. Only `http`). These handlers are unavailable after resolving is complete. |
 | RESOLVER_URLS | Optional | Resolver URLs are a key value pair (e.g., `key1:value1,key2:value2`) of event names to URLs. These are required when using non `http` event types. The URL should NOT include a scheme. Instead `http` will be added (e.g., `queue:/v1/resolve/queue,twitter:some.url/twitter`). |
-| OPEN_ENDPOINTS | Optional | Comma separated (e.g., `value1,value2`) of paths that do not require an `Authorization` header. |
 
 #### worker
 | Property | Required | Description |
@@ -65,9 +64,10 @@ functions:
     http: # 3
     - path: /v1/fibonacci # 4
       method: GET # 5
+      no_auth: true # 6
       cache:
-        duration: 5m # 6
-        header: # 7
+        duration: 5m # 7
+        header: # 8
         - Authorization
 ```
 
@@ -117,12 +117,17 @@ made available to the receiving function.
 The method is used for routing requests. If the method is `GET`, then caching
 is available.
 
-##### 6. Cache Duration (e.g., `5m`)
+##### 6. No Auth (e.g., `true`)
+Setting `no_auth` to true will all the corresponding path to not require an
+authorization header to be set. If it is set to `false` or left out, it will
+require one.
+
+##### 7. Cache Duration (e.g., `5m`)
 The cache duration is how long a request will be cached for before becoming
 invalid. Caching is only available with `GET` requests.
 [Groupcache][groupcache] is used to cache results.
 
-##### 7. Cache Header (e.g., `Authorization`)
+##### 8. Cache Header (e.g., `Authorization`)
 Any listed header is used to determine uniqueness with the request. If two
 requests are identical (i.e., same path), but were to have different
 `Authorization` header values, then they would have their cache values

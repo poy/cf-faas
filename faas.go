@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/bradylove/envstruct"
+	envstruct "code.cloudfoundry.org/go-envstruct"
 )
 
 type Request struct {

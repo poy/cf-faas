@@ -193,6 +193,63 @@ func TestManiestOpenEndpoints(t *testing.T) {
 	})
 }
 
+func TestManiestEventNames(t *testing.T) {
+	t.Parallel()
+	o := onpar.New()
+	defer o.Run(t)
+
+	o.Spec("it lists every open endpoint (no_auth=true)", func(t *testing.T) {
+		m := manifest.Manifest{
+			Functions: []manifest.Function{
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+					Events: map[string][]manifest.GenericData{
+						"event": []manifest.GenericData{
+							{
+								"path": "/v1/path",
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-2",
+					},
+					Events: map[string][]manifest.GenericData{
+						"other-event": []manifest.GenericData{
+							{
+								"path": "/v2/path",
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+						AppName: "app-name-1",
+					},
+					Events: map[string][]manifest.GenericData{
+						"other-event": []manifest.GenericData{
+							{
+								"path": "/v3/path",
+							},
+						},
+					},
+				},
+				{
+					Handler: manifest.Handler{
+					// Use default
+					},
+				},
+			},
+		}
+
+		Expect(t, m.EventNames()).To(HaveLen(2))
+		Expect(t, m.EventNames()).To(Contain("event", "other-event"))
+	})
+}
+
 func TestHTTPFunctionValidate(t *testing.T) {
 	t.Parallel()
 	o := onpar.New()

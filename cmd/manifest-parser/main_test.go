@@ -23,6 +23,12 @@ func TestParseManifest(t *testing.T) {
 	defer cancel()
 
 	buf := bytes.Buffer{}
+	defer func() {
+		if t.Failed() {
+			t.Log(buf.String())
+		}
+	}()
+
 	Expect(t, startTestExec(ctx, t, &buf,
 		"MANIFEST="+m,
 	)()).To(BeNil())
@@ -31,6 +37,46 @@ func TestParseManifest(t *testing.T) {
 		Equal("/v1/second-open,/v2/first-open"),
 		Equal("/v2/first-open,/v1/second-open"),
 	))
+}
+
+func TestParseResolversSuccess(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
+	defer cancel()
+
+	buf := bytes.Buffer{}
+	defer func() {
+		if t.Failed() {
+			t.Log(buf.String())
+		}
+	}()
+
+	Expect(t, startTestExec(ctx, t, &buf,
+		"MANIFEST="+m,
+		"VALIDATE_RESOLVERS=true",
+		"RESOLVER_URLS=other-event:some.url,another-event:other.url",
+	)()).To(BeNil())
+}
+
+func TestParseResolversFailure(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Second)
+	defer cancel()
+
+	buf := bytes.Buffer{}
+	defer func() {
+		if t.Failed() {
+			t.Log(buf.String())
+		}
+	}()
+
+	Expect(t, startTestExec(ctx, t, &buf,
+		"MANIFEST="+m,
+		"VALIDATE_RESOLVERS=true",
+		"RESOLVER_URLS=another-event:other.url", // missing resolver for other-event
+	)()).To(Not(BeNil()))
 }
 
 const m = `---
@@ -46,6 +92,8 @@ functions:
     - path: /v2/first-open
       method: POST
       no_auth: true
+    other-event:
+    - some: data
 - handler:
    app_name: faas-droplet-echo
    command: ./echo
@@ -57,6 +105,8 @@ functions:
     - path: /v2/closed
       method: POST
       no_auth: false
+    another-event:
+    - some: data
 `
 
 func startTestExec(ctx context.Context, t *testing.T, writer io.Writer, envs ...string) func() error {

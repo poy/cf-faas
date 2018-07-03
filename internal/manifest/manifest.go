@@ -200,3 +200,22 @@ func (m *Manifest) OpenEndpoints() []string {
 
 	return openEndpoints
 }
+
+func (m *Manifest) EventNames() []string {
+	var eventNames []string
+
+	h := make(map[string]bool)
+
+	for _, f := range m.Functions {
+		for name := range f.Events {
+			if h[name] {
+				continue
+			}
+
+			h[name] = true
+			eventNames = append(eventNames, name)
+		}
+	}
+
+	return eventNames
+}

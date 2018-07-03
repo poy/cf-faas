@@ -62,6 +62,9 @@ fi
 
 TEMP_DIR=$(mktemp -d)
 
+# Validate manifest
+MANIFEST=$(cat $manifest_path) RESOLVER_URLS=$resolvers VALIDATE_RESOLVERS=true go run cmd/manifest-parser/main.go
+
 # CF-FaaS binaries
 echo "building CF-FaaS binaries..."
 GOOS=linux go build -o $TEMP_DIR/cf-faas ./cmd/cf-faas &> /dev/null || fail "failed to build cf-faas"

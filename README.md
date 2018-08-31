@@ -6,7 +6,7 @@ developers to build via functions. It offers many advantages to building a
 vanilla applications:
 
 1. Autoscaling out of the box
-1. Configurable caching for GET results (via [google's groupcache][groupcache]
+1. Configurable caching for GET results (via [google's groupcache][groupcache])
 1. Minimize application instance count
 1. Keeps `cf push` experience
 1. Decouple endpoints

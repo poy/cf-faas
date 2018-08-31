@@ -11,7 +11,7 @@ bootstrap_path=""
 resolvers=""
 
 function print_usage {
-    echo "Usage: $0 [-a:m:b:p:h]"
+    echo "Usage: $0 [a:m:b:r:h]"
     echo " -a application name (REQUIRED) - The given name (and route) for CF-FaaS."
     echo " -m manifest path (REQUIRED)    - The path to the YAML file that configures the endpoints."
     echo " -b bootstrap manifest path     - The path to the YAML file that configures the bootstrap endpoints."

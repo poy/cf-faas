@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"time"
 
 	faas "github.com/apoydence/cf-faas"
 	"github.com/apoydence/cf-faas/internal/capi"
@@ -25,14 +29,35 @@ func main() {
 		http.DefaultClient,
 	)
 
-	taskRunner := capi.NewTaskRunner(
+	var taskRunner handlers.TaskRunner = capi.NewTaskRunner(
 		cfg.ScriptAppName,
 		client,
 	)
 
+	if !cfg.CreateTask {
+		taskRunner = handlers.TaskRunnerFunc(func(command, name string) (string, error) {
+			ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+			cmd := exec.CommandContext(ctx, "/bin/bash", append([]string{"-c"}, command)...)
+
+			for k, v := range map[string]string{
+				"HTTP_PROXY": cfg.HttpProxy,
+			} {
+				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+			}
+
+			out, err := cmd.Output()
+			if err != nil {
+				return "", err
+			}
+
+			return string(out), nil
+		})
+	}
+
 	faas.Start(handlers.NewRunTask(
 		cfg.Command,
 		cfg.ExpectedHeaders,
+		!cfg.CreateTask,
 		taskRunner,
 		log,
 	))

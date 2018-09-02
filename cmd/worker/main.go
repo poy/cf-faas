@@ -39,7 +39,7 @@ func main() {
 
 	exec := scheduler.ExecutorFunc(func(cwd string, envs map[string]string, command string) error {
 		ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
-		cmd := exec.CommandContext(ctx, "bash", append([]string{"-c"}, command)...)
+		cmd := exec.CommandContext(ctx, "/bin/bash", append([]string{"-c"}, command)...)
 		cmd.Dir = cwd
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

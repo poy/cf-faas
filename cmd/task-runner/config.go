@@ -7,17 +7,22 @@ import (
 )
 
 type Config struct {
+	// Command is the command that will run on the local task or within the
+	// new one.
 	Command string `env:"COMMAND, required"`
 
-	// These headers are used to distinguish tasks.
+	// CreateTask defines if the task is a new one or the current task.
+	CreateTask bool `env:CREATE_TASK"`
+
+	// ExpectedHeaders are the headers are used to distinguish tasks.
 	ExpectedHeaders []string `env:"EXPECTED_HEADERS"`
 
 	// HttpProxy is not used directly, however the CAPI client assumes its
 	// going through a proxy for auth.
 	HttpProxy string `env:"HTTP_PROXY, required"`
 
-	// ScriptAppName is the app name that has the droplet where the CI/CD
-	// script lives.
+	// ScriptAppName is the app name that has the droplet where the script
+	// lives.
 	ScriptAppName string `env:"SCRIPT_APP_NAME"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`

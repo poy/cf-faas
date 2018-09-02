@@ -37,6 +37,7 @@ func TestRunTask(t *testing.T) {
 			h: handlers.NewRunTask(
 				"some-command",
 				[]string{"a", "b"},
+				false,
 				spyTaskRunner,
 				log.New(ioutil.Discard, "", 0),
 			),
@@ -52,6 +53,24 @@ func TestRunTask(t *testing.T) {
 		Expect(t, t.spyTaskRunner.name).To(Not(Equal("")))
 		Expect(t, resp.StatusCode).To(Equal(http.StatusOK))
 		Expect(t, resp.Body).To(MatchJSON(fmt.Sprintf(`{"task_guid":"task-guid","task_name":%q}`, t.spyTaskRunner.name)))
+	})
+
+	o.Spec("runs a task and outputs the raw result", func(t TT) {
+		t.h = handlers.NewRunTask(
+			"some-command",
+			[]string{"a", "b"},
+			true,
+			t.spyTaskRunner,
+			log.New(ioutil.Discard, "", 0),
+		)
+		t.spyTaskRunner.result = "raw output"
+		resp, err := t.h.Handle(faas.Request{})
+		Expect(t, err).To(BeNil())
+
+		Expect(t, t.spyTaskRunner.command).To(ContainSubstring("some-command"))
+		Expect(t, t.spyTaskRunner.name).To(Not(Equal("")))
+		Expect(t, resp.StatusCode).To(Equal(http.StatusOK))
+		Expect(t, string(resp.Body)).To(Equal("raw output"))
 	})
 
 	o.Spec("it includes expected headers in the name", func(t TT) {

@@ -14,7 +14,7 @@ type Config struct {
 	Port       int `env:"PORT, required, report"`
 	HealthPort int `env:"PROXY_HEALTH_PORT, report"`
 
-	ResolverURLs map[string]string `env:"RESOLVER_URLS"`
+	ResolverURLs map[string]string `env:"RESOLVER_URLS, report"`
 
 	BootstrapManifest manifest.HTTPManifest `env:"BOOTSTRAP_MANIFEST"`
 

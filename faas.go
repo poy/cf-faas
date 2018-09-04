@@ -37,7 +37,7 @@ func (f HandlerFunc) Handle(r Request) (Response, error) {
 }
 
 func Start(h Handler) {
-	log := log.New(os.Stderr, "[FAAS]", log.LstdFlags)
+	log := log.New(os.Stderr, "[FAAS HANDLER] ", log.LstdFlags)
 	cfg := loadConfig(log)
 
 	request := getRequest(cfg, http.DefaultClient, log)

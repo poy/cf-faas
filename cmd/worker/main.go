@@ -21,6 +21,16 @@ func main() {
 
 	cfg := LoadConfig(log)
 
+	// We are going to download packages and want any redirects (to blob
+	// stores) to not hit our local cache.
+	http.DefaultClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		req.Header.Set("Cache-Control", "no-cache")
+		if req.URL.Scheme == "https" {
+			req.URL.Scheme = "http"
+		}
+		return nil
+	}
+
 	capiClient := gocapi.NewClient(
 		cfg.VcapApplication.CAPIAddr,
 		cfg.VcapApplication.ApplicationID,

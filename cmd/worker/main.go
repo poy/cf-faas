@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	log := log.New(os.Stderr, "[WORKER]", log.LstdFlags)
+	log := log.New(os.Stderr, "[WORKER] ", log.LstdFlags)
 	log.Printf("Starting CF FaaS worker...")
 	defer log.Printf("Closing CF FaaS worker...")
 

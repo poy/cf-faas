@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	log := log.New(os.Stderr, "", log.LstdFlags)
+	log := log.New(os.Stderr, "[FAAS] ", log.LstdFlags)
 	log.Printf("Starting CF FaaS...")
 	defer log.Printf("Closing CF FaaS...")
 

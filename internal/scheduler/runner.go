@@ -51,7 +51,7 @@ func NewRunner(
 func (r *Runner) Submit(work internalapi.Work) {
 	path, err := r.m.PackageForApp(work.AppName)
 	if err != nil {
-		log.Printf("failed to fetch package for app %s: %s", work.AppName, err)
+		r.log.Printf("failed to fetch package for app %s: %s", work.AppName, err)
 		return
 	}
 

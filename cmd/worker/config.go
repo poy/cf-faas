@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	PoolAddr    string   `env:"POOL_ADDR, required"`
-	AppInstance string   `env:"X_CF_APP_INSTANCE, required"`
-	AppNames    []string `env:"APP_NAMES, required"`
-	HTTPProxy   string   `env:"HTTP_PROXY, required"`
-	DataDir     string   `env:"DATA_DIR"`
+	PoolAddr    string   `env:"POOL_ADDR, required, report"`
+	AppInstance string   `env:"X_CF_APP_INSTANCE, required, report"`
+	AppNames    []string `env:"APP_NAMES, required, report"`
+	HTTPProxy   string   `env:"HTTP_PROXY, required, report"`
+	DataDir     string   `env:"DATA_DIR, report"`
 
 	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
 }
@@ -39,6 +39,8 @@ func LoadConfig(log *log.Logger) Config {
 
 	// Use HTTP so we can use HTTP_PROXY
 	cfg.VcapApplication.CAPIAddr = strings.Replace(cfg.VcapApplication.CAPIAddr, "https", "http", 1)
+
+	envstruct.WriteReport(&cfg)
 
 	return cfg
 }

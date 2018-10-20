@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/manifest"
-	gocapi "github.com/apoydence/go-capi"
+	"github.com/poy/cf-faas/internal/manifest"
+	gocapi "github.com/poy/go-capi"
 	"github.com/gorilla/mux"
 )
 

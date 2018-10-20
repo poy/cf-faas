@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/go-envstruct"
-	"github.com/apoydence/cf-faas/internal/manifest"
+	"github.com/poy/cf-faas/internal/manifest"
 )
 
 type Config struct {

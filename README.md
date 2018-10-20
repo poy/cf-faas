@@ -28,7 +28,7 @@ Usage: scripts/install.sh [-a:m:b:p:h]
                                   name and URL (e.g., eventname:some.url/v1/path,other-event:/v2/bootstrap/path).
  -h help                        - Shows this usage.
 
-More information available at https://github.com/apoydence/cf-faas
+More information available at https://github.com/poy/cf-faas
 ```
 
 ### Configuration

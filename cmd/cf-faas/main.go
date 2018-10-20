@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/handlers"
-	"github.com/apoydence/cf-faas/internal/manifest"
-	cfgroupcache "github.com/apoydence/cf-groupcache"
-	gocapi "github.com/apoydence/go-capi"
+	"github.com/poy/cf-faas/internal/handlers"
+	"github.com/poy/cf-faas/internal/manifest"
+	cfgroupcache "github.com/poy/cf-groupcache"
+	gocapi "github.com/poy/go-capi"
 	"github.com/golang/groupcache"
 )
 

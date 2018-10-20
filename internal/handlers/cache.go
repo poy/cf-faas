@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	faas "github.com/apoydence/cf-faas"
+	faas "github.com/poy/cf-faas"
 	"github.com/golang/groupcache"
 )
 

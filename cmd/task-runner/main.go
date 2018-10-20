@@ -9,10 +9,10 @@ import (
 	"os/exec"
 	"time"
 
-	faas "github.com/apoydence/cf-faas"
-	"github.com/apoydence/cf-faas/internal/capi"
-	"github.com/apoydence/cf-faas/internal/handlers"
-	gocapi "github.com/apoydence/go-capi"
+	faas "github.com/poy/cf-faas"
+	"github.com/poy/cf-faas/internal/capi"
+	"github.com/poy/cf-faas/internal/handlers"
+	gocapi "github.com/poy/go-capi"
 )
 
 func main() {

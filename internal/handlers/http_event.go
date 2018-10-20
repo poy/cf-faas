@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/apoydence/cf-faas"
-	"github.com/apoydence/cf-faas/internal/internalapi"
+	"github.com/poy/cf-faas"
+	"github.com/poy/cf-faas/internal/internalapi"
 )
 
 type HTTPEvent struct {

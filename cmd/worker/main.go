@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/capi"
-	"github.com/apoydence/cf-faas/internal/scheduler"
-	gocapi "github.com/apoydence/go-capi"
+	"github.com/poy/cf-faas/internal/capi"
+	"github.com/poy/cf-faas/internal/scheduler"
+	gocapi "github.com/poy/go-capi"
 )
 
 func main() {

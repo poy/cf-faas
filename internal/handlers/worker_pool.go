@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/internalapi"
-	gocapi "github.com/apoydence/go-capi"
+	"github.com/poy/cf-faas/internal/internalapi"
+	gocapi "github.com/poy/go-capi"
 )
 
 type WorkerPool struct {

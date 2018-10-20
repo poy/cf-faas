@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/apoydence/onpar/expect"
-	. "github.com/apoydence/onpar/matchers"
+	. "github.com/poy/onpar/expect"
+	. "github.com/poy/onpar/matchers"
 )
 
 func TestParseManifest(t *testing.T) {
@@ -117,7 +117,7 @@ func startTestExec(ctx context.Context, t *testing.T, writer io.Writer, envs ...
 		t.Fatal(err)
 	}
 
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", path.Join(tempDir, "manifest-parser"), "github.com/apoydence/cf-faas/cmd/manifest-parser")
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", path.Join(tempDir, "manifest-parser"), "github.com/poy/cf-faas/cmd/manifest-parser")
 
 	cmd.Env = []string{"GOPATH=" + gopath(t)}
 	buf := &bytes.Buffer{}

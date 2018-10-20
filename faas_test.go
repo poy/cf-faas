@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	faas "github.com/apoydence/cf-faas"
-	"github.com/apoydence/onpar"
-	. "github.com/apoydence/onpar/expect"
-	. "github.com/apoydence/onpar/matchers"
+	faas "github.com/poy/cf-faas"
+	"github.com/poy/onpar"
+	. "github.com/poy/onpar/expect"
+	. "github.com/poy/onpar/matchers"
 )
 
 func TestMain(m *testing.M) {

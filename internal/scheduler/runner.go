@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/internalapi"
+	"github.com/poy/cf-faas/internal/internalapi"
 )
 
 type PackageManager interface {

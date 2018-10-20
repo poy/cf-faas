@@ -20,7 +20,7 @@ function print_usage {
     echo "                                  (e.g., eventname:some.url/v1/path,other-event:/v2/bootstrap/path)."
     echo " -h help                        - Shows this usage."
     echo
-    echo "More information available at https://github.com/apoydence/cf-faas"
+    echo "More information available at https://github.com/poy/cf-faas"
 }
 
 function abs_path {
@@ -76,7 +76,7 @@ echo "done building CF-FaaS binaries."
 
 # CF-Space-Security binaries
 echo "building CF-Space-Security binaries..."
-go get github.com/apoydence/cf-space-security/... &> /dev/null || fail "failed to get cf-space-security"
+go get github.com/poy/cf-space-security/... &> /dev/null || fail "failed to get cf-space-security"
 GOOS=linux go build -o $TEMP_DIR/proxy ../cf-space-security/cmd/proxy &> /dev/null || fail "failed to build cf-space-security proxy"
 GOOS=linux go build -o $TEMP_DIR/reverse-proxy ../cf-space-security/cmd/reverse-proxy &> /dev/null || fail "failed to build cf-space-security reverse proxy"
 echo "done building CF-Space-Security binaries."

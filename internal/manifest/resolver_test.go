@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/manifest"
-	"github.com/apoydence/onpar"
-	. "github.com/apoydence/onpar/expect"
-	. "github.com/apoydence/onpar/matchers"
+	"github.com/poy/cf-faas/internal/manifest"
+	"github.com/poy/onpar"
+	. "github.com/poy/onpar/expect"
+	. "github.com/poy/onpar/matchers"
 )
 
 type TR struct {

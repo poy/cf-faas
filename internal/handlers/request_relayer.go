@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apoydence/cf-faas"
+	"github.com/poy/cf-faas"
 	"github.com/gorilla/mux"
 )
 

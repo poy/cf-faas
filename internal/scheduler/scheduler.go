@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/apoydence/cf-faas/internal/internalapi"
+	"github.com/poy/cf-faas/internal/internalapi"
 )
 
 type WorkSubmitter interface {

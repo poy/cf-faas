@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	capi "github.com/apoydence/go-capi"
+	capi "github.com/poy/go-capi"
 )
 
 type TaskRunner struct {

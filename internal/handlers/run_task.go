@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	faas "github.com/apoydence/cf-faas"
+	faas "github.com/poy/cf-faas"
 )
 
 type RunTask struct {
